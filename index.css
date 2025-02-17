@@ -1,0 +1,28 @@
+html,body { height:100%; }
+body {
+    background-color: #101010;
+}
+
+h1, h2 {
+    color: white;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.file-upload, .menu-elements {
+    background-color: #151515;
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: white;
+    border-radius: 0.5em;
+}
+
+#editor, #output {
+    width: 50%;
+    height: 100%;
+    font-size: 1.5em;
+}
