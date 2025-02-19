@@ -7,10 +7,11 @@
 import http.server
 import socketserver
 import os
-import sys
 import cgi
+import signal
 import subprocess
 import random
+import asyncio
 from threading import Thread
 from string import ascii_letters
 from typing import TextIO
@@ -18,23 +19,13 @@ from typing import TextIO
 PORT = 8000
 TEST_STREAM = TextIO()
 
-def test_thread(args):
-    global process_thread
-    def process():
-        subprocess.run(args,
-                    # capture_output=True, text=True,
-                    stderr=sys.stderr, stdout=sys.stdout)
-    process_thread = Thread(target=process)
-    process_thread.start()
-
-    name = random_string(2)
-    i = 0
-    while process_thread is not None:
-        print(name, i)
-        i += 1
-
 def random_string(count):
     return "".join([random.choice(ascii_letters) for i in range(count)])
+
+class CustomServer(socketserver.TCPServer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.proc = None
 
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -75,13 +66,23 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
             filename = post_data
-            
-            worker_thread = Thread(target=test_thread, args=(['python', os.path.join('uploads', filename)],))
-            process_thread = None
-            worker_thread.start()
-            
+
             self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.send_header('Transfer-Encoding', 'chunked')
             self.end_headers()
+
+            async def start_process():
+                args = ["python", "-u", os.path.join("uploads", filename)]
+                with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as proc:
+                    self.server.proc = proc
+                    for line in proc.stdout:
+                        # print(proc)
+                        self.wfile.write(line.encode())
+                        self.wfile.flush()
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            result = new_loop.run_until_complete(start_process())
 
     def do_GET(self):
         if self.path == '/list':
@@ -90,6 +91,13 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             self.wfile.write('\n'.join(files).encode())
+        elif self.path == "/stop":
+            print(self.server.proc)
+            self.server.proc.send_signal(signal.SIGINT)
+
+            self.send_response(200)
+            self.send_header('Location', '/')
+            self.end_headers()
         elif self.path.startswith('/load/'):
             filename = self.path[6:]
             if not filename: return
@@ -122,11 +130,9 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 Handler = CustomHandler
 
 def main():
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    with CustomServer(("", PORT), Handler) as httpd:
         print(f"Serving at port {PORT}.")
         httpd.serve_forever()
 
-main_thread = Thread(target=main)
-main_thread.start()
-worker_thread = None
-process_thread = None
+if __name__ == "__main__":
+    Thread(target=main).start()
