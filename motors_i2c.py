@@ -14,19 +14,17 @@ class Motor:
     self.setSINCOSCENTRE(1251)
     self.configureOperatingModeAndSensor(3, 1)
     self.configureCommandMode(12)
+    self.register = None
 
   def write(self, byte_value: bytes):
     "Write a byte to I2C"
-    print(hex(byte_value))
-    self.bus.write_byte(self.address, byte_value)
+    self.register = byte_value
 
   def write_32bit(self, value: int):
     "Write a 32-bit value to I2C"
     if type(value) == float: byte_arr = struct.pack('<f', value)
     else: byte_arr = value.to_bytes(4, 'little')
-    print(f"Writing {value}; {byte_arr}")
-    for b in byte_arr[::-1]:
-      self.write(b)
+    self.bus.write_i2c_block_data(self.address, self.register, list(byte_arr))
 
   def setCurrentLimitFOC(self, current: int):
     self.write(0x33)
