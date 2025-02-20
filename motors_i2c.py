@@ -1,9 +1,10 @@
-from smbus2 import SMBus, i2c_msg
+from smbus2 import SMBus
+import struct
 
 class Motor:
-  def __init__(self, address: int, bus: SMBus):
+  def __init__(self, address: int):
     self.address: int = address
-    self.bus: SMBus = bus
+    self.bus = SMBus(1)
 
     self.setCurrentLimitFOC(65536 * 2)
     self.setIdPidConstants(1500, 200)
@@ -14,13 +15,18 @@ class Motor:
     self.configureOperatingModeAndSensor(3, 1)
     self.configureCommandMode(12)
 
-  def write(self, *values: tuple[int]):
-    "Write an array of bytes to I2C"
-    self.bus.i2c_rdwr(i2c_msg.write(self.address, list(values)))
+  def write(self, byte_value: bytes):
+    "Write a byte to I2C"
+    print(hex(byte_value))
+    self.bus.write_byte(self.address, byte_value)
 
   def write_32bit(self, value: int):
     "Write a 32-bit value to I2C"
-    self.write(value.to_bytes(4, 'big')) # Big endian or something
+    if type(value) == float: byte_arr = struct.pack('<f', value)
+    else: byte_arr = value.to_bytes(4, 'little')
+    print(f"Writing {value}; {byte_arr}")
+    for b in byte_arr[::-1]:
+      self.write(b)
 
   def setCurrentLimitFOC(self, current: int):
     self.write(0x33)

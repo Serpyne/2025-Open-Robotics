@@ -1,0 +1,2 @@
+[console_scripts]
+luma = cli:cli
