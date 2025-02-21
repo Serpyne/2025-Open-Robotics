@@ -25,11 +25,13 @@ def initialise_event_loop():
     loop.create_task(main(motors))
     loop.run_forever()
 
-
-if __name__ == "__main__":
+def mainloop():
     try:
         initialise_event_loop()
     except KeyboardInterrupt:
         dribbler_motor.set_speed(0)
         for motor in motors:
             motor.set_speed(0)
+
+if __name__ == "__main__":
+    mainloop()

@@ -8,7 +8,7 @@ import time
 import struct
 import asyncio
 
-MAX_SPEED = 120_000_000
+MAX_SPEED = 140_000_000
 TICK_DURATION = 0.1
 
 def clamp(value, a, b):
