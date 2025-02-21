@@ -1,68 +1,151 @@
-from smbus2 import SMBus
+"""
+Brushless DC Motor Library ported to python
+Original creator: James
+"""
+
+import smbus2
+import time
 import struct
+import asyncio
+
+MAX_SPEED = 90_000_000
+TICK_DURATION = 0.1
+
+def clamp(value, a, b):
+    return max(a, min(value, b))
+
+class TimedEvent:
+    def __init__(self, speed_value: int, duration: float = -1):
+        self.speed = speed_value
+        self.duration = duration
+    @property
+    def indefinite(self):
+        return bool(self.duration < 0)
 
 class Motor:
-  def __init__(self, address: int):
-    self.address: int = address
-    self.bus = SMBus(1)
+    def __init__(self, address, bus_number: int = 1,
+                 current_limit_FOC: int = 65536 * 2,
+                 id_PID_constants: tuple[int] = (1500, 200),
+                 iq_PID_constants: tuple[int] = (1500, 200),
+                 speed_PID_constants: tuple[int] = (0.04, 0.0004, 0.03),
+                 elec_angle_offset: int = 1510395136,
+                 sin_cos_centre: int = 1251,
+                 operating_mode_and_sensor: tuple[int] = (3, 1),
+                 command_mode: int = 12):
+        self.i2c_address = address
+        self.bus = smbus2.SMBus(bus_number)
+        self.QDRformat = 0
 
-    self.setCurrentLimitFOC(65536 * 2)
-    self.setIdPidConstants(1500, 200)
-    self.setIqPidConstants(1500, 200)
-    self.setSpeedPidConstants(0.04, 0.0004, 0.03)
-    self.setELECANGLEOFFSET(1510395136)
-    self.setSINCOSCENTRE(1251)
-    self.configureOperatingModeAndSensor(3, 1)
-    self.configureCommandMode(12)
-    self.register = None
+        # Default initialisation sequence
+        self.set_current_limit_FOC(current_limit_FOC)
+        self.set_id_PID_constants(*id_PID_constants)
+        self.set_iq_PID_constants(*iq_PID_constants)
+        self.set_speed_PID_constants(*speed_PID_constants)
+        self.set_elec_angle_offset(elec_angle_offset)
+        self.set_sin_cos_centre(sin_cos_centre)
+        self.configure_operating_mode_and_sensor(*operating_mode_and_sensor)
+        self.configure_command_mode(command_mode)
 
-  def write(self, byte_value: bytes):
-    "Write a byte to I2C"
-    self.register = byte_value
+        self.state = TimedEvent(0)
+        self.events = []
 
-  def write_32bit(self, value: int):
-    "Write a 32-bit value to I2C"
-    if type(value) == float: byte_arr = struct.pack('<f', value)
-    else: byte_arr = value.to_bytes(4, 'little')
-    self.bus.write_i2c_block_data(self.address, self.register, list(byte_arr))
+    async def update(self):
+        while True:
+            if len(self.events) > 0:
+                event = self.events.pop(0)
+                print(f"Setting {self.i2c_address} to {event.speed}.")
+                # WRITE DATA AND THEN SET CURRENT STATE TO SPEED
+                # if self.state == event:
+                #     data = struct.pack("<i", event.speed)
+                #     self.bus.write_i2c_block_data(self.i2c_address, 0x12, list(data))
+                #     self.state = event
+                await asyncio.sleep(event.duration)
+            else:
+                if self.state.speed != 0: self.set_speed(0)
+                self.state = TimedEvent(0)
+            await asyncio.sleep(TICK_DURATION)
 
-  def setCurrentLimitFOC(self, current: int):
-    self.write(0x33)
-    self.write_32bit(current)
+    def set_speed_for(self, speed: int, duration: float):
+        self.events.append(TimedEvent(speed, duration))
 
-  def setIqPidConstants(self, kp: int, ki: int):
-    self.write(0x40)
-    self.write_32bit(kp)
-    self.write_32bit(ki)
+    def set_speed(self, speed: int, force=True):
+        """Set the speed of the motor, taking into account the direction (via sign)
+        ; force[bool] bypasses motor timed events.
+        """
+        try:
+            # speed = clamp(speed, -1.0, 1.0)
+            # speed = int(MAX_SPEED * speed)
+            data = struct.pack("<i", speed)
+            if force: self.events = [TimedEvent(speed)]
+            self.bus.write_i2c_block_data(self.i2c_address, 0x12, list(data))
+        except Exception as e:
+            print(f"Error setting Speed: {e}")
 
-  def setIdPidConstants(self, kp: int, ki: int):
-    self.write(0x41)
-    self.write_32bit(kp)
-    self.write_32bit(ki)
+    def set_iq_PID_constants(self, kp, ki):
+        try:
+            data = struct.pack("<ii", kp, ki)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x40, list(data))
+        except Exception as e:
+            print(f"Error setting Iq PID constants: {e}")
 
-  def setSpeedPidConstants(self, kp: float, ki: float, kd: float):
-    self.write(0x42)
-    self.write_32bit(kp)
-    self.write_32bit(ki)
-    self.write_32bit(kd)
+    def set_id_PID_constants(self, kp, ki):
+        try:
+            data = struct.pack("<ii", kp, ki)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x41, list(data))
+        except Exception as e:
+            print(f"Error setting Id PID constants: {e}")
 
-  def configureOperatingModeAndSensor(self, operating_mode: int, sensor_type: int):
-    self.write(0x20)
-    self.write(operating_mode + (sensor_type << 4))
+    def set_speed_PID_constants(self, kp, ki, kd):
+        try:
+            data = struct.pack("<fff", kp, ki, kd)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x42, list(data))
+        except Exception as e:
+            print(f"Error setting Speed PID constants: {e}")
 
-  def configureCommandMode(self, command_mode: int):
-    self.write(0x21)
-    self.write(command_mode)
+    def configure_operating_mode_and_sensor(self, operatingmode, sensortype):
+        try:
+            self.bus.write_byte_data(self.i2c_address, 0x20, operatingmode + (sensortype << 4))
+        except Exception as e:
+            print(f"Error configuring Operating Mode and Sensor: {e}")
 
-  def setELECANGLEOFFSET(self, ELEC_ANGLE_OFFSET: int):
-    self.write(0x30)
-    self.write_32bit(ELEC_ANGLE_OFFSET)
+    def configure_command_mode(self, commandmode):
+        try:
+            self.bus.write_byte_data(self.i2c_address, 0x21, commandmode)
+        except Exception as e:
+            print(f"Error configuring Command Mode: {e}")
 
-  def setSINCOSCENTRE(self, SIN_COS_CENTRE: int):
-    self.write(0x32)
-    self.write_32bit(SIN_COS_CENTRE)
+    def set_torque(self, torque):
+        try:
+            data = struct.pack("<i", torque)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x11, list(data))
+        except Exception as e:
+            print(f"Error setting Torque: {e}")
 
-  def setSpeed(self, speed: float):
-    "Set the speed of brushless motor within a range of -1.0 to 1.0"
-    self.write(0x12)
-    self.write_32bit(int(90_000_000 * speed))
+    def set_position(self, position, elecangle):
+        try:
+            data = struct.pack("<I", position)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x13, list(data))
+            self.send8bitvalue(elecangle)
+        except Exception as e:
+            print(f"Error setting Position: {e}")
+
+    def set_current_limit_FOC(self, current):
+        try:
+            data = struct.pack("<i", current)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x33, list(data))
+        except Exception as e:
+            print(f"Error setting Current Limit FOC: {e}")
+
+    def set_elec_angle_offset(self, ELECANGLEOFFSET):
+        try:
+            data = struct.pack("<I", ELECANGLEOFFSET)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x30, list(data))
+        except Exception as e:
+            print(f"Error setting ELECANGLEOFFSET: {e}")
+
+    def set_sin_cos_centre(self, SINCOSCENTRE):
+        try:
+            data = struct.pack("<i", SINCOSCENTRE)
+            self.bus.write_i2c_block_data(self.i2c_address, 0x32, list(data))
+        except Exception as e:
+            print(f"Error setting SINCOSCENTRE: {e}")
