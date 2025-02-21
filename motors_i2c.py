@@ -8,7 +8,7 @@ import time
 import struct
 import asyncio
 
-MAX_SPEED = 90_000_000
+MAX_SPEED = 120_000_000
 TICK_DURATION = 0.1
 
 def clamp(value, a, b):
@@ -49,16 +49,16 @@ class Motor:
         self.state = TimedEvent(0)
         self.events = []
 
-    async def update(self):
+    async def event_loop(self):
         while True:
             if len(self.events) > 0:
                 event = self.events.pop(0)
                 print(f"Setting {self.i2c_address} to {event.speed}.")
                 # WRITE DATA AND THEN SET CURRENT STATE TO SPEED
-                # if self.state == event:
-                #     data = struct.pack("<i", event.speed)
-                #     self.bus.write_i2c_block_data(self.i2c_address, 0x12, list(data))
-                #     self.state = event
+                if self.state == event:
+                    data = struct.pack("<i", event.speed)
+                    self.bus.write_i2c_block_data(self.i2c_address, 0x12, list(data))
+                    self.state = event
                 await asyncio.sleep(event.duration)
             else:
                 if self.state.speed != 0: self.set_speed(0)
@@ -73,10 +73,10 @@ class Motor:
         ; force[bool] bypasses motor timed events.
         """
         try:
-            # speed = clamp(speed, -1.0, 1.0)
-            # speed = int(MAX_SPEED * speed)
+            speed = clamp(speed, -1.0, 1.0)
+            speed = int(MAX_SPEED * speed)
             data = struct.pack("<i", speed)
-            if force: self.events = [TimedEvent(speed)]
+            if force: self.events = []
             self.bus.write_i2c_block_data(self.i2c_address, 0x12, list(data))
         except Exception as e:
             print(f"Error setting Speed: {e}")
