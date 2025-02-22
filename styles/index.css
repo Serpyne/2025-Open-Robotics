@@ -1,0 +1,55 @@
+html,body { height:100%; }
+body {
+    background-color: #101010;
+}
+
+h1, h2 {
+    color: white;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.file-upload, .menu-elements {
+    background-color: #151515;
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: white;
+    border-radius: 0.5em;
+}
+
+#editor {
+    width: 50%;
+    height: 100%;
+    font-size: 1.5em;
+}
+
+#console-box {
+    background-color: rgb(20, 20, 20);
+    color: white;
+    width: 50%;
+    height: 100%;
+    font-size: 1.5em;
+    flex-grow: 1;
+    overflow-y: scroll;
+}
+
+#console-elements {
+    position: absolute;
+    right: 1.2em;
+    padding: 0.5em;
+    display: flex;
+    flex-direction: column;
+}
+#clear-console-button {
+    margin: 5%;
+    font-size: 0.75em;
+}
+#autoScrollButton {
+    transform: scale(2);
+    margin: 1em;
+}
+

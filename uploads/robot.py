@@ -4,8 +4,14 @@ parent_dir = "\\".join(os.path.dirname(__file__).split("\\")[:-1])
 sys.path.append(parent_dir)
 from main import *
 
-def main(motors):
-    print(motors[0].i2c_address)
+async def main(motors):
+    motors[0].set_speed_for(1.0, 3.0)
+    motors[0].set_speed_for(0.0, 1.0)
+    motors[0].set_speed_for(0.5, 2.0)
+    motors[1].set_speed_for(1.0, 0.1)
+    motors[0].set_speed_for(0.0, 0.1)
+    motors[1].set_speed_for(0.0, 0.1)
 
 if __name__ == "__main__":
-    mainloop()
+    # complete_startup()
+    mainloop(main)

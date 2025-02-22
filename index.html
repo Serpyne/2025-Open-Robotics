@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robotics Interface</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="styles/index.css">
+    <link rel="stylesheet" href="styles/toast.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
 <body>
-    <h1>Robotics Interface</h1>
+    <h1>Team Susmita</h1>
     
     <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
         <label for="file-upload" class="file-upload">Upload Script</label>
@@ -20,13 +22,24 @@
         <button class="menu-elements" onclick="deleteFile()">Delete</button>
         <button class="menu-elements" onclick="loadFile()">Load</button>
         <button class="menu-elements" onclick="saveFile()">Save</button>
-        <button class="menu-elements" onclick="executeFile()">Execute</button>
+        <button class="menu-elements" id="executeButton" onclick="executeFile()">Execute</button>
         <select class="menu-elements" id="fileList"></select>
     </div>
     <div style="display: inline-flex; width: 100%; height: 80%; flex-direction: row;">
     <div id="editor"></div>
-    <div id="output"></div>
+    <div id="console-box">
+        <div id="console-elements">
+            <span id="autoScrollDiv">
+                <input type="checkbox" id="autoScrollButton">
+                <label for="autoScrollButton">Auto-Scroll</label>
+            </span>
+            <button id="clear-console-button" onclick="clearOutput();">Clear</button>
+        </div>
+        <p id="output"></p>
     </div>
+    </div>
+
+    <div id="toast-overlay"></div>
 
     <script>
         document.getElementById("file-upload").onchange = function() {
@@ -56,12 +69,15 @@
         }
 
         function newFile() {
-            const filename = document.getElementById('fileList').value;
-            fetch(`/new/${filename}`)
+            fetch(`/new`)
                 .then(response => response.text())
                 .then(data => {
-                    editor.setValue(data);
+                    let filename = data.toString();
+                    console.log(filename);
                     updateFileList();
+                    setTimeout(`document.getElementById('fileList').value = '${filename}';`, 10);
+                    setTimeout("loadFile();", 100);
+                    showToast(`New file '${filename}' created.`);
                 });
         }
 
@@ -70,8 +86,9 @@
             fetch(`/delete/${filename}`)
                 .then(response => response.text())
                 .then(data => {
-                    editor.setValue(data);
                     updateFileList();
+                    setTimeout("loadFile();", 100);
+                    showToast(`'${filename}' deleted.`);
                 });
         }
 
@@ -90,22 +107,93 @@
             fetch('/save', {
                 method: 'POST',
                 body: `${filename}:${content}`
+            }).then(response => {
+                showToast(`'${filename}' saved.`);
             });
         }
+
+        const autoScrollButton = document.getElementById("autoScrollButton");
+        var autoScroll = true;
+        autoScrollButton.checked = autoScroll;
+        autoScrollButton.onchange = function(event) {
+            autoScroll = autoScrollButton.checked;
+        }
+
+        const executeButton = document.getElementById("executeButton");
+        const consoleBox = document.getElementById("console-box");
+        const outputBox = document.getElementById("output");
 
         function executeFile() {
+            executeButton.innerText = "Stop";
             const filename = document.getElementById('fileList').value;
-            fetch('/execute', {
-                method: 'POST',
-                body: filename
-            })
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('output').innerText = data;
-            });
+            const socket = new WebSocket(`ws://localhost:8765/${filename}`);
+            socket.onmessage = function(event) {
+                if (event.data == "SCRIPT_ENDED_SIGNAL") {
+                    executeButton.innerText = "Execute";
+                    showToast(`'${filename}' ended.`)
+                    return;
+                }
+                let line = event.data;
+                outputBox.innerText += line;
+                if (autoScroll == true) {
+                    consoleBox.scrollTop = consoleBox.scrollHeight;
+                }
+            };
         }
 
+        function clearOutput() {
+            outputBox.innerText = "";
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveFile();
+            }
+        });
+
+        let icon = {
+            success:
+            '<span class="material-symbols-outlined">task_alt</span>',
+            danger:
+            '<span class="material-symbols-outlined">error</span>',
+            warning:
+            '<span class="material-symbols-outlined">warning</span>',
+            info:
+            '<span class="material-symbols-outlined">info</span>',
+        };
+        function showToast(
+            message = "Sample Message",
+            toastType = "info",
+            duration = 5000) {
+            if (!Object.keys(icon).includes(toastType))
+                toastType = "info";
+
+            let box = document.createElement("div");
+            box.classList.add(
+                "toast", `toast-${toastType}`);
+            box.innerHTML = ` <div class="toast-content-wrapper">
+                        <div class="toast-icon">
+                        ${icon[toastType]}
+                        </div>
+                        <div class="toast-message">${message}</div>
+                        <div class="toast-progress"></div>
+                        </div>`;
+            duration = duration || 5000;
+            box.querySelector(".toast-progress").style.animationDuration =
+                    `${duration / 1000}s`;
+
+            let toastAlready = 
+                document.body.querySelector(".toast");
+            if (toastAlready) {
+                toastAlready.remove();
+            }
+
+            document.body.appendChild(box)
+        };
+        
         updateFileList();
+        setTimeout("loadFile();", 100);
     </script>
 </body>
 </html>
