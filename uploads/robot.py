@@ -2,7 +2,7 @@ import sys
 import os
 parent_dir = "\\".join(os.path.dirname(__file__).split("\\")[:-1])
 sys.path.append(parent_dir)
-from main import *
+from main import mainloop
 
 async def main(motors):
     motors[0].set_speed_for(1.0, 3.0)

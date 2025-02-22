@@ -55,7 +55,7 @@ class Motor:
                 event = self.events.pop(0)
                 print(f"Setting {self.i2c_address} to {event.speed}.")
                 # WRITE DATA AND THEN SET CURRENT STATE TO SPEED
-                if self.state == event:
+                if self.state != event:
                     data = struct.pack("<i", event.speed)
                     self.bus.write_i2c_block_data(self.i2c_address, 0x12, list(data))
                     self.state = event
@@ -66,6 +66,8 @@ class Motor:
             await asyncio.sleep(TICK_DURATION)
 
     def set_speed_for(self, speed: int, duration: float):
+        speed = clamp(speed, -1, 1)
+        speed = int(MAX_SPEED * speed)
         self.events.append(TimedEvent(speed, duration))
 
     def set_speed(self, speed: int, force=True):
