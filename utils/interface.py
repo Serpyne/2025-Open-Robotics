@@ -126,19 +126,23 @@ async def execute_script_thread(filename):
 
 async def websocket_handler(websocket: websockets.ServerConnection):
     global ran_once, glob_proc
+    print("EXECUTE BUTTON CLICKED")
     if not ran_once:
         print("Running")
         ran_once = True
     else:
         print("Stopping")
         await websocket.send("SCRIPT_ENDED_SIGNAL")
-        if glob_proc is None: glob_proc.terminate()
+        if glob_proc: glob_proc.terminate()
         glob_proc = None
         ran_once = False
         return
     
     try:
-        filename = websocket.request.path[1:]
+        if type(websocket) == websockets.server.WebSocketServerProtocol:
+            filename = websocket.path[1:]
+        else:
+            filename = websocket.request.path[1:]
         async for line in execute_script_thread(os.path.join("uploads", filename)):
             await websocket.send(line.decode())
         # Process terminated/ended on its own
@@ -151,11 +155,23 @@ async def websocket_handler(websocket: websockets.ServerConnection):
         pass
 
 async def start_websocket_process():
-    server = await websockets.serve(websocket_handler, "127.0.0.1", 8765)
-    await server.wait_closed()
+    try:
+        server = await websockets.serve(websocket_handler, "0.0.0.0", 8765)
+        await server.wait_closed()
+    except KeyboardInterrupt:
+        print("Stopping ser        await asyncio.sleep(duration)ver")
+        server.close()
 def start_websocket():
     asyncio.run(start_websocket_process())
-
+        await asyncio.sleep(duration)
 if __name__ == "__main__":
-    Thread(target=start_websocket).start()
-    Thread(target=start_server).start()
+    threads = [
+        Thread(target=start_websocket),
+        Thread(target=start_server)
+    ]
+
+    try:
+        for thread in threads:
+            thread.start()
+    except KeyboardInterrupt:
+        raise Exception("Program stopped by user.")

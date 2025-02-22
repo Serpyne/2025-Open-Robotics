@@ -4,28 +4,32 @@ from utils.motors_i2c import Motor
 from threading import Thread
 from utils.interface import start_websocket, start_server
 
-dribbler_motor = Motor(address=0x1e)
-motors = [
-    Motor(address=0x19),
-    Motor(address=0x1a),
-    Motor(address=0x1b),
-    Motor(address=0x1c)
-]
+motors = {
+    0: Motor(address=0x19),
+    1: Motor(address=0x1a),
+    2: Motor(address=0x1c),
+    3: Motor(address=0x1b),
+    "dribbler": Motor(address=0x1e)
+}
 
-def initialise_event_loop(main_func):
-    loop = asyncio.get_event_loop()
-    for motor in motors:
-        loop.create_task(motor.event_loop())
-    loop.create_task(main_func(motors))
-    loop.run_forever()
+async def initialise_event_loop(main_func):
+    for index in motors:
+        motor = motors[index]
+        asyncio.create_task(motor.event_loop())
+    main_task = asyncio.create_task(main_func(motors))
+    await asyncio.gather(main_task)
 
 def mainloop(main_func):
     try:
-        initialise_event_loop(main_func)
-    except KeyboardInterrupt:
-        dribbler_motor.set_speed(0)
-        for motor in motors:
-            motor.set_speed(0)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(initialise_event_loop(main_func))
+        loop.run_forever()
+    except Exception as e:
+        print(e)
+        print("Program Halted")
+    for index in motors:
+        motor = motors[index]
+        motor.set_speed(0)
 
 def complete_startup(main_func):
     Thread(target=mainloop, args=(main_func,)).start()

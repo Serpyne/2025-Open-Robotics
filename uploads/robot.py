@@ -1,16 +1,15 @@
 import sys
 import os
+import asyncio
 parent_dir = "\\".join(os.path.dirname(__file__).split("\\")[:-1])
 sys.path.append(parent_dir)
 from main import mainloop
 
 async def main(motors):
-    motors[0].set_speed_for(1.0, 3.0)
-    motors[0].set_speed_for(0.0, 1.0)
-    motors[0].set_speed_for(0.5, 2.0)
-    motors[1].set_speed_for(1.0, 0.1)
-    motors[0].set_speed_for(0.0, 0.1)
-    motors[1].set_speed_for(0.0, 0.1)
+    t = 3
+    # motors["dribbler"].set_speed_for(0.5, t)
+    [motors[i].set_speed(-0.4) for i in range(4)]
+    await asyncio.sleep(t)
 
 if __name__ == "__main__":
     # complete_startup()

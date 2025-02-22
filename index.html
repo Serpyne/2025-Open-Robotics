@@ -126,7 +126,7 @@
         function executeFile() {
             executeButton.innerText = "Stop";
             const filename = document.getElementById('fileList').value;
-            const socket = new WebSocket(`ws://localhost:8765/${filename}`);
+            const socket = new WebSocket(`ws://raspberrypi.local:8765/${filename}`);
             socket.onmessage = function(event) {
                 if (event.data == "SCRIPT_ENDED_SIGNAL") {
                     executeButton.innerText = "Execute";
