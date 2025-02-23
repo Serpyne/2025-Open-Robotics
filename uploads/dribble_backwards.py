@@ -39,7 +39,6 @@ async def main(motors):
         motors[2].set_speed(-x_speed)
         motors[3].set_speed(-y_speed)
     
-    angle = 0
     while True:
         match switch_position:
             case position.SWITCH_DOWN:
@@ -50,8 +49,8 @@ async def main(motors):
                 motors["dribbler"].set_speed(0)
 
             case position.SWITCH_UP:
-                angle += 13
-                await drive_in_direction(angle, 0.25)
+                motors["dribbler"].set_speed(-1.0)
+                await drive_in_direction(180, 0.1)
             
         await asyncio.sleep(MOTOR_UPDATE_INTERVAL)
 

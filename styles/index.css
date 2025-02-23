@@ -1,6 +1,8 @@
 html,body { height:100%; }
 body {
     background-color: #101010;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
 }
 
 h1, h2 {
@@ -12,10 +14,10 @@ input[type="file"] {
 }
 
 .file-upload, .menu-elements {
-    background-color: #151515;
-    border: 1px solid #ccc;
+    background-color: #2a332d;
+    /*border: 1px solid #ccc;
     display: inline-block;
-    padding: 6px 12px;
+    */padding: 6px 12px;
     cursor: pointer;
     color: white;
     border-radius: 0.5em;
@@ -37,6 +39,11 @@ input[type="file"] {
     overflow-y: scroll;
 }
 
+p {
+    font: 12px / normal 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    white-space: pre-wrap;
+}
+
 #console-elements {
     position: absolute;
     right: 1.2em;
@@ -53,3 +60,10 @@ input[type="file"] {
     margin: 1em;
 }
 
+#renameEntry {
+    width: 5em;
+    background: #3a433a;
+    border: 3px solid #6b756b;
+    border-radius: 0.5em;
+    color: white;
+}

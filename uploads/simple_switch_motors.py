@@ -1,16 +1,15 @@
 import sys
 import os
 import asyncio
-from math import sin, cos, radians
 parent_dir = "\\".join(os.path.dirname(__file__).split("\\")[:-1])
 sys.path.append(parent_dir)
 from main import mainloop
 import RPi.GPIO as GPIO
+import time
 
 # Program Constants
 MOTOR_UPDATE_INTERVAL = 0.05
 SWITCH_UPDATE_INTERVAL = 0.01
-
 switch_position = 1
 
 class position:
@@ -22,24 +21,7 @@ class position:
 async def main(motors):
     "Main robot event loop"
     asyncio.create_task(switch_update())
-
-    async def drive_in_direction(direction, speed):
-        """
-        0 deg is straight ahead
-        90 deg is right
-        ...
-        """
-        direction *= -1
-        direction -= 45
-        direction = radians(direction)
-        x_speed = speed * sin(direction)
-        y_speed = speed * cos(direction)
-        motors[0].set_speed(x_speed)
-        motors[1].set_speed(y_speed)
-        motors[2].set_speed(-x_speed)
-        motors[3].set_speed(-y_speed)
     
-    angle = 0
     while True:
         match switch_position:
             case position.SWITCH_DOWN:
@@ -50,8 +32,7 @@ async def main(motors):
                 motors["dribbler"].set_speed(0)
 
             case position.SWITCH_UP:
-                angle += 13
-                await drive_in_direction(angle, 0.25)
+                [motors[i].set_speed(-1) for i in range(4)]
             
         await asyncio.sleep(MOTOR_UPDATE_INTERVAL)
 

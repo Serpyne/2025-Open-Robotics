@@ -17,8 +17,12 @@
         <input id="file-upload" type="file" name="file">
     </form>
 
-    <div>
+    <div style="display: flex;">
         <button class="menu-elements" onclick="newFile()">New</button>
+        <div>
+            <input type="text" id="renameEntry">
+            <button class="menu-elements" onclick="renameFile()">Rename</button>
+        </div>
         <button class="menu-elements" onclick="deleteFile()">Delete</button>
         <button class="menu-elements" onclick="loadFile()">Load</button>
         <button class="menu-elements" onclick="saveFile()">Save</button>
@@ -52,6 +56,7 @@
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/python");
+        editor.setOption("copyWithEmptySelection", true);
 
         function updateFileList() {
             fetch('/list')
@@ -122,6 +127,20 @@
         const executeButton = document.getElementById("executeButton");
         const consoleBox = document.getElementById("console-box");
         const outputBox = document.getElementById("output");
+
+        function renameFile() {
+            const filename = document.getElementById('fileList').value;
+            const newName = document.getElementById('renameEntry').value;
+            fetch(`/rename`, {
+                method: 'POST',
+                body: `${filename}:${newName}`
+            }).then(response => response.text())
+              .then(data => {
+                updateFileList();
+                if (data)
+                    setTimeout(`document.getElementById('fileList').value = '${data}';`, 200);
+            })
+        }
 
         var socket;
         function executeFile() {
@@ -205,7 +224,7 @@
         };
         
         updateFileList();
-        setTimeout("loadFile();", 100);
+        setTimeout("loadFile();", 150);
     </script>
 </body>
 </html>

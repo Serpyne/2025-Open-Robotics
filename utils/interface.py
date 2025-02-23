@@ -64,14 +64,29 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"File saved successfully")
+        elif self.path == '/rename':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('-utf-8')
+            filename, new_name = post_data.split(":")
+            self.send_response(200)
+            self.end_headers()
+            if not new_name: return
+            original_split = filename.split(".")
+            if len(original_split) > 1:
+                extension = "." + original_split[-1]
+                if len(new_name) >= len(extension):
+                    new_name += extension
+                else:
+                    if new_name[-len(extension):] != extension: new_name += extension
+            os.rename(os.path.join('uploads', filename), os.path.join('uploads', new_name))
+            self.wfile.write(new_name)
+
         elif self.path == '/execute':
             content_length = int(self.headers['Content-Length'])
             filename = self.rfile.read(content_length).decode('-utf-8')
             self.send_response(200)
             self.end_headers()
-            print(filename)
             res = toggle_process(filename)
-            print(res)
             if res: self.wfile.write(res.encode())
 
     def do_GET(self):
