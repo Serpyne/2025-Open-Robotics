@@ -8,14 +8,15 @@ import http.server
 import socketserver
 import os
 import cgi
+import sys
 import signal
 import subprocess
 import random
 import asyncio
 import websockets
+import time
 from threading import Thread
 from string import ascii_letters
-from typing import TextIO
 
 PORT = 8000
 
@@ -23,6 +24,7 @@ def random_string(count):
     return "".join([random.choice(ascii_letters) for i in range(count)])
 
 class CustomServer(socketserver.TCPServer):
+    allow_reuse_address = True
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.proc = None
@@ -62,6 +64,15 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"File saved successfully")
+        elif self.path == '/execute':
+            content_length = int(self.headers['Content-Length'])
+            filename = self.rfile.read(content_length).decode('-utf-8')
+            self.send_response(200)
+            self.end_headers()
+            print(filename)
+            res = toggle_process(filename)
+            print(res)
+            if res: self.wfile.write(res.encode())
 
     def do_GET(self):
         if self.path == '/list':
@@ -108,70 +119,83 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
 Handler = CustomHandler
 
+server = None
 def start_server():
-    with CustomServer(("", PORT), Handler) as httpd:
-        print(f"Serving at port {PORT}.")
-        httpd.serve_forever()
+    global server
+
+    server = CustomServer(("", PORT), Handler)
+    print(f"Serving at port {PORT}.")
+    server.serve_forever()
 
 glob_proc = None
 ran_once = False
-async def execute_script_thread(filename):
-    global glob_proc
+execute_filename = None
+async def execute_script_thread(websocket, filename):
+    global glob_proc, ran_once
     args = ["python", "-u", filename]
-    with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
-        glob_proc = proc
-        for line in proc.stdout:
-            yield line
-            await asyncio.sleep(0.0001)
+    glob_proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-async def websocket_handler(websocket: websockets.ServerConnection):
-    global ran_once, glob_proc
+    for line in glob_proc.stdout:
+        print(line)
+        await websocket.send(line.decode())
+        time.sleep(0.001)
+
+    # Process terminated/ended on its own
+    print("output thread ended")
+    await websocket.send("SCRIPT_ENDED_SIGNAL")
+    if glob_proc: glob_proc.terminate()
+    glob_proc = None
+    ran_once = False
+
+def toggle_process(filename):
+    global ran_once, glob_proc, execute_filename
     print("EXECUTE BUTTON CLICKED")
     if not ran_once:
         print("Running")
+        execute_filename = filename
         ran_once = True
+        return "SCRIPT_START_SIGNAL"
     else:
         print("Stopping")
-        await websocket.send("SCRIPT_ENDED_SIGNAL")
         if glob_proc: glob_proc.terminate()
         glob_proc = None
         ran_once = False
-        return
-    
+        subprocess.Popen(["python", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return "SCRIPT_ENDED_SIGNAL"
+
+async def websocket_handler(websocket: websockets.ServerConnection):
     try:
         if type(websocket) == websockets.server.WebSocketServerProtocol:
             filename = websocket.path[1:]
         else:
             filename = websocket.request.path[1:]
-        async for line in execute_script_thread(os.path.join("uploads", filename)):
-            await websocket.send(line.decode())
-        # Process terminated/ended on its own
-        await websocket.send("SCRIPT_ENDED_SIGNAL")
-        if glob_proc: glob_proc.terminate()
-        glob_proc = None
-        ran_once = False
-        print("Ended")
+        await execute_script_thread(websocket, os.path.join('uploads', execute_filename))
     except websockets.exceptions.ConnectionClosedOK:
         pass
 
 async def start_websocket_process():
-    try:
-        server = await websockets.serve(websocket_handler, "0.0.0.0", 8765)
-        await server.wait_closed()
-    except KeyboardInterrupt:
-        print("Stopping ser        await asyncio.sleep(duration)ver")
-        server.close()
+    server = await websockets.serve(websocket_handler, "0.0.0.0", 8765)
+    await server.wait_closed()
+
 def start_websocket():
     asyncio.run(start_websocket_process())
-        await asyncio.sleep(duration)
-if __name__ == "__main__":
-    threads = [
-        Thread(target=start_websocket),
-        Thread(target=start_server)
-    ]
 
+if __name__ == "__main__":
     try:
+        threads = [
+            Thread(target=start_websocket),
+            Thread(target=start_server)
+        ]
+
         for thread in threads:
             thread.start()
+        for thread in threads:
+            thread.join()
+
     except KeyboardInterrupt:
-        raise Exception("Program stopped by user.")
+        if server:
+            print("Shutting down server..")
+            server.shutdown()
+            server.server_close()
+        print("Exiting..")
+        sys.exit(0)

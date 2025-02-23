@@ -123,10 +123,18 @@
         const consoleBox = document.getElementById("console-box");
         const outputBox = document.getElementById("output");
 
+        var socket;
         function executeFile() {
             executeButton.innerText = "Stop";
             const filename = document.getElementById('fileList').value;
-            const socket = new WebSocket(`ws://raspberrypi.local:8765/${filename}`);
+            fetch(`/execute`, {
+                method: 'POST',
+                body: filename
+            }).then(response => response.text())
+              .then(data => {
+            console.log(data);
+            if (data == "SCRIPT_START_SIGNAL") {
+            socket = new WebSocket(`ws://raspberrypi.local:8765/${filename}`);
             socket.onmessage = function(event) {
                 if (event.data == "SCRIPT_ENDED_SIGNAL") {
                     executeButton.innerText = "Execute";
@@ -139,6 +147,10 @@
                     consoleBox.scrollTop = consoleBox.scrollHeight;
                 }
             };
+            } else if (data == "SCRIPT_END_SIGNAL") {
+                socket.close();
+            }
+            });
         }
 
         function clearOutput() {

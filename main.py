@@ -19,17 +19,20 @@ async def initialise_event_loop(main_func):
     main_task = asyncio.create_task(main_func(motors))
     await asyncio.gather(main_task)
 
-def mainloop(main_func):
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(initialise_event_loop(main_func))
-        loop.run_forever()
-    except Exception as e:
-        print(e)
-        print("Program Halted")
+def stop_motors():
     for index in motors:
         motor = motors[index]
         motor.set_speed(0)
+
+def mainloop(main_func, loop_forever=True):
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(initialise_event_loop(main_func))
+        if loop_forever: loop.run_forever()
+    except Exception as e:
+        print(e)
+        print("Program Halted")
+    stop_motors()
 
 def complete_startup(main_func):
     Thread(target=mainloop, args=(main_func,)).start()
