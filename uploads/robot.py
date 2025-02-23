@@ -21,7 +21,7 @@ class position:
 
 async def main(motors):
     "Main robot event loop"
-    asyncio.create_task(switch_update())
+    # asyncio.create_task(switch_update())
 
     async def drive_in_direction(direction, speed):
         """
@@ -55,20 +55,20 @@ async def main(motors):
             
         await asyncio.sleep(MOTOR_UPDATE_INTERVAL)
 
-async def switch_update():
-    "Toggle-switch event loop"
-    global switch_position
-    GPIO.setmode(GPIO.BOARD)
-    switch_middle = 11
-    switch_up = 13
-    GPIO.setup(switch_middle, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(switch_up, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-    def read_position():
-        return GPIO.input(switch_middle) + GPIO.input(switch_up)
+# async def switch_update():
+#     "Toggle-switch event loop"
+#     global switch_position
+#     GPIO.setmode(GPIO.BOARD)
+#     switch_middle = 11
+#     switch_up = 13
+#     GPIO.setup(switch_middle, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+#     GPIO.setup(switch_up, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+#     def read_position():
+#         return GPIO.input(switch_middle) + GPIO.input(switch_up)
     
-    while True:
-        switch_position = read_position()
-        await asyncio.sleep(SWITCH_UPDATE_INTERVAL)
+#     while True:
+#         switch_position = read_position()
+#         await asyncio.sleep(SWITCH_UPDATE_INTERVAL)
 
 if __name__ == "__main__":
     mainloop(main)
