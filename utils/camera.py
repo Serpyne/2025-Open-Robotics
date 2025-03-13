@@ -269,44 +269,44 @@ class DownFacingCamera:
                     # center=self.camera_center, radius=self.mask_radius,
                     # color=(0, 255, 0), thickness=1)
                 
-        CNT_SIZE = 48
-        if type(self.yellow_goal_mask) != None:
-            yel = imutils.grab_contours(cv2.findContours(self.yellow_goal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE))
-            if len(yel) > 0:
-                cnt = sorted(yel, key=lambda x: x.size)[-1]
-                m = cv2.moments(cnt)
-                if m['m00'] != 0 and cnt.size > CNT_SIZE:
-                    self.yellow_center = [ int(m['m10'] / m['m00']), int(m['m01'] / m['m00']) ]
-                    if self.draw_detections:
-                        cv2.drawMarker(frame, self.yellow_center, (255, 0, 255))
-        if type(self.blue_goal_mask) != None:
-            blue = imutils.grab_contours(cv2.findContours(self.blue_goal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE))
-            if len(blue) > 0:
-                cnt = sorted(blue, key=lambda x: x.size)[-1]
-                m = cv2.moments(cnt)
-                if m['m00'] != 0 and cnt.size > CNT_SIZE:
-                    self.blue_center = [ int(m['m10']/m['m00']), int(m['m01']/m['m00']) ]
-                    if self.draw_detections:
-                        cv2.drawMarker(frame, self.blue_center, (255, 0, 255))
+        # CNT_SIZE = 48
+        # if type(self.yellow_goal_mask) != None:
+        #     yel = imutils.grab_contours(cv2.findContours(self.yellow_goal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE))
+        #     if len(yel) > 0:
+        #         cnt = sorted(yel, key=lambda x: x.size)[-1]
+        #         m = cv2.moments(cnt)
+        #         if m['m00'] != 0 and cnt.size > CNT_SIZE:
+        #             self.yellow_center = [ int(m['m10'] / m['m00']), int(m['m01'] / m['m00']) ]
+        #             if self.draw_detections:
+        #                 cv2.drawMarker(frame, self.yellow_center, (255, 0, 255))
+        # if type(self.blue_goal_mask) != None:
+        #     blue = imutils.grab_contours(cv2.findContours(self.blue_goal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE))
+        #     if len(blue) > 0:
+        #         cnt = sorted(blue, key=lambda x: x.size)[-1]
+        #         m = cv2.moments(cnt)
+        #         if m['m00'] != 0 and cnt.size > CNT_SIZE:
+        #             self.blue_center = [ int(m['m10']/m['m00']), int(m['m01']/m['m00']) ]
+        #             if self.draw_detections:
+        #                 cv2.drawMarker(frame, self.blue_center, (255, 0, 255))
                     
-        self.yellow_angle = pi/2 - atan2(self.yellow_center[1] - camera_center[1], self.yellow_center[0] - camera_center[0])
-        self.yellow_angle = self.yellow_angle % (2 * pi)
-        self.blue_angle = pi/2 - atan2(self.blue_center[1] - camera_center[1], self.blue_center[0] - camera_center[0])
-        self.blue_angle = self.blue_angle % (2 * pi)
+        # self.yellow_angle = pi/2 - atan2(self.yellow_center[1] - camera_center[1], self.yellow_center[0] - camera_center[0])
+        # self.yellow_angle = self.yellow_angle % (2 * pi)
+        # self.blue_angle = pi/2 - atan2(self.blue_center[1] - camera_center[1], self.blue_center[0] - camera_center[0])
+        # self.blue_angle = self.blue_angle % (2 * pi)
 
-        # Localisation via goal angles
-        if self.draw_detections:
-            cy = cos(self.yellow_angle)
-            cb = cos(self.blue_angle)
-            det = cb * sin(self.yellow_angle) - cy * sin(self.blue_angle)
-            goalToGoalLength = (243.0 - 21.5 * 2)
-            yellow_dist = goalToGoalLength * cb / det
-            blue_dist = goalToGoalLength * cy / det
+        # # Localisation via goal angles
+        # if self.draw_detections:
+        #     cy = cos(self.yellow_angle)
+        #     cb = cos(self.blue_angle)
+        #     det = cb * sin(self.yellow_angle) - cy * sin(self.blue_angle)
+        #     goalToGoalLength = (243.0 - 21.5 * 2)
+        #     yellow_dist = goalToGoalLength * cb / det
+        #     blue_dist = goalToGoalLength * cy / det
 
-            if det != 0:
-                positionX = 91.0 + yellow_dist * cos(self.yellow_angle)
-                positionY = 21.5 + yellow_dist * sin(self.yellow_angle)
-                print(f"ay: {self.yellow_angle:.1f} ab: {self.blue_angle:.1f} | Y: {yellow_dist:.1f}, B: {blue_dist:.1f} | x: {positionX:.1f}, y: {positionY:.1f}")
+        #     if det != 0:
+        #         positionX = 91.0 + yellow_dist * cos(self.yellow_angle)
+        #         positionY = 21.5 + yellow_dist * sin(self.yellow_angle)
+        #         print(f"ay: {self.yellow_angle:.1f} ab: {self.blue_angle:.1f} | Y: {yellow_dist:.1f}, B: {blue_dist:.1f} | x: {positionX:.1f}, y: {positionY:.1f}")
             
         if len(contours) > 0:
             
