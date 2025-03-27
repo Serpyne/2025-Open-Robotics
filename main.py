@@ -1,6 +1,7 @@
 import time
 import asyncio
 from utils.motors_i2c import Motor
+from utils.cam import Camera
 from threading import Thread
 from utils.interface import start_websocket, start_server
 
@@ -11,6 +12,7 @@ motors = {
     3: Motor(address=0x1b),
     "dribbler": Motor(address=0x1e)
 }
+camera = Camera()
 
 async def initialise_event_loop(main_func):
     for index in motors:

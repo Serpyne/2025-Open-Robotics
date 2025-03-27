@@ -4,6 +4,8 @@
 - dist_squared(a<Vector>, b<Vector>)
 """
 
+from math import sqrt
+
 class Vector:
     """
     A 2D Vector defined by an x and y value.
@@ -30,6 +32,12 @@ class Vector:
     def copy(self):
         return Vector(self._vec[0], self._vec[1])
     
+    def __add__(self, other):
+        return Vector(self._vec[0] + other._vec[0], self._vec[1] + other._vec[1])
+    
+    def __sub__(self, other):
+        return Vector(self._vec[0] - other._vec[0], self._vec[1] - other._vec[1])
+    
     @property
     def x(self):
         return self._vec[0]
@@ -49,6 +57,10 @@ class Vector:
     def int(self):
         return [int(_) for _ in self._vec]
     
+    @property
+    def magnitude(self) -> float:
+        return sqrt(self._vec[0]**2 + self._vec[1]**2)
+
 def lerp(a: float, b: float, step: float = .1) -> float:
     return a + (b - a) * step
 
