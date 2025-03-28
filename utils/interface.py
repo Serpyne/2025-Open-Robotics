@@ -125,7 +125,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             if not filename: return
             filepath = os.path.join('uploads', filename)
             if os.path.exists(filepath):
-                os.remove(filepath)
+                os.remove(filepath) 
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
@@ -142,12 +142,13 @@ def start_server():
     print(f"Serving at port {PORT}.")
     server.serve_forever()
 
+python_exec = "env/bin/python"
 glob_proc = None
 ran_once = False
 execute_filename = None
 async def execute_script_thread(websocket, filename):
     global glob_proc, ran_once
-    args = ["python", "-u", filename]
+    args = [python_exec, "-u", filename]
     glob_proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     for line in glob_proc.stdout:
@@ -175,7 +176,7 @@ def toggle_process(filename):
         if glob_proc: glob_proc.terminate()
         glob_proc = None
         ran_once = False
-        subprocess.Popen(["python", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        subprocess.Popen([python_exec, "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         return "SCRIPT_ENDED_SIGNAL"
 
 async def websocket_handler(websocket: websockets.ServerConnection):

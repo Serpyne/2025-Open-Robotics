@@ -18,7 +18,7 @@ async def initialise_event_loop(main_func):
     for index in motors:
         motor = motors[index]
         asyncio.create_task(motor.event_loop())
-    main_task = asyncio.create_task(main_func(motors))
+    main_task = asyncio.create_task(main_func(motors, camera))
     await asyncio.gather(main_task)
 
 def stop_motors():

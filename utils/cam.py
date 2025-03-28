@@ -5,6 +5,8 @@ import numpy as np
 import imutils
 from math import *
 from threading import Thread
+import os
+sys.path.append(os.path.dirname(__file__))
 from classes import Vector
 
 try:
@@ -20,7 +22,7 @@ DISPLAY = True
 class Camera:
     def __init__(self):
         if ON_PI:
-            self.strean = Picamera2(0)
+            self.stream = Picamera2(0)
             raw_config = self.stream.sensor_modes[1]
             raw_config["fps"] = 60
             config = self.stream.create_video_configuration(
@@ -31,16 +33,15 @@ class Camera:
             )
             self.stream.configure(config)
             self.stream.controls.ExposureTime = 8000
-            self.stream.controls.Saturation = 1.4
+            self.stream.controls.Saturation = 6
         else:
-            self.stream = VideoStream().start()
+            self.stream = VideoStream()
 
         self._frame = None
         self.frame = None
 
         self.pos = None
         self.radius = None
-        self.radial_distance = None
         self.yellow_goal_mask = None
         self.blue_goal_mask = None
 
@@ -52,7 +53,9 @@ class Camera:
         self.distance = None
         self.angle = None
 
-        self.center = [320, 240]
+        self.center = [320, 480-20]
+        
+        self.running = False
 
     def read(self) -> cv2.typing.MatLike:
         if ON_PI:
@@ -62,10 +65,8 @@ class Camera:
     def get_mask(self, frame) -> cv2.typing.MatLike:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # ball_lower = (175, 0, 0)
-        # ball_upper = (255, 90, 20)
-        ball_lower = (0, 0, 0)
-        ball_upper = (255, 110, 50)
+        ball_lower = (175, 0, 0)
+        ball_upper = (255, 90, 35)
         mask = cv2.inRange(rgb, ball_lower, ball_upper)
 
         return mask
@@ -75,7 +76,7 @@ class Camera:
         contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
         
-        if DISPLAY: cv2.drawMarker(frame, self.center, (0, 255, 0))
+        if DISPLAY: cv2.drawMarker(frame, self.center, (0, 0, 255))
         if len(contours) == 0: return frame
             
         points = []
@@ -95,7 +96,7 @@ class Camera:
             if dist_to_last_contour > 120: continue
 
             prev = center.copy()
-            if DISPLAY: cv2.drawMarker(frame, center.int(), (255, 0, 0))
+            if DISPLAY: cv2.drawMarker(frame, center.int(), (255, 0, 255))
             points += [x for x in cnt]
                 
         if len(points) <= 4: return frame
@@ -109,7 +110,7 @@ class Camera:
         self.pos = Vector(center)
         delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
         self.angle = -atan2(delta_pos[1], delta_pos[0])
-        self.radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
+        self.distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
         self.radius = size[0] * size[1]
         
         if DISPLAY:   
@@ -117,13 +118,17 @@ class Camera:
                 cv2.drawContours(frame, contours, i, (0, 255, 0))
 
             cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.drawMarker(frame, [int(center[0]), int(center[1])], (0, 255, 0))
+            cv2.drawMarker(frame, [int(center[0]), int(center[1])], (0, 0, 255))
                      
         return frame
     
     def start_event_loop(self):
+        if ON_PI: self.stream.start()
+        else: self.stream = self.stream.start()
+        
+        self.running = True
         def _event_loop():
-            while True:
+            while self.running:
                 self._frame = self.read()
                 if self._frame is None: continue
                 if self._frame.size == 0: self._frame = None; continue
@@ -134,6 +139,7 @@ class Camera:
         Thread(target=_event_loop, daemon=True).start()
 
     def stop(self):
+        self.running = False
         if ON_PI:
             self.stream.close()
         else:
@@ -142,7 +148,6 @@ class Camera:
 def main():
     while True:
         if camera.frame is None: continue
-        print(camera.angle, camera.radial_distance)
         if DISPLAY:
             cv2.imshow("test", camera.frame)
             cv2.waitKey(1)
