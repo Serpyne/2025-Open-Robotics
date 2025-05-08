@@ -8,6 +8,7 @@ from threading import Thread
 import os
 sys.path.append(os.path.dirname(__file__))
 from classes import Vector
+from time import perf_counter as pc
 
 try:
     from picamera2 import Picamera2
@@ -16,24 +17,26 @@ except:
     from imutils.video import VideoStream
     ON_PI = False
 
-RESIZE_WIDTH = 640
+size = [200, 150]#[640, 480]
+RESIZE_WIDTH = size[0]
 DISPLAY = True
 
 class Camera:
     def __init__(self):
         if ON_PI:
             self.stream = Picamera2(0)
-            raw_config = self.stream.sensor_modes[1]
-            raw_config["fps"] = 60
+            raw_config = self.stream.sensor_modes[0]
+            #raw_config["fps"] = 60
+            print(raw_config)
             config = self.stream.create_video_configuration(
-                main={"format": "XRGB8888", "size": [640, 480]},
+                main={"format": "XRGB8888", "size": size},
                 raw=raw_config,
                 buffer_count=6,
-                controls={"FrameRate": 60},
+                controls={"FrameRate": raw_config["fps"]},
             )
             self.stream.configure(config)
-            self.stream.controls.ExposureTime = 8000
-            self.stream.controls.Saturation = 6
+            self.stream.controls.ExposureTime = 9000
+            self.stream.controls.Saturation = 3
         else:
             self.stream = VideoStream()
 
@@ -64,6 +67,8 @@ class Camera:
 
     def get_mask(self, frame) -> cv2.typing.MatLike:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        cv2.circle(rgb, (320, 480), 160, (0,255,0), -1)
 
         ball_lower = (175, 0, 0)
         ball_upper = (255, 90, 35)

@@ -150,7 +150,7 @@ async def execute_script_thread(websocket, filename):
     global glob_proc, ran_once
     args = [python_exec, "-u", filename]
     glob_proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
+    print("EXEC")
     for line in glob_proc.stdout:
         print(line)
         await websocket.send(line.decode())
@@ -176,11 +176,12 @@ def toggle_process(filename):
         if glob_proc: glob_proc.terminate()
         glob_proc = None
         ran_once = False
-        subprocess.Popen([python_exec, "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         return "SCRIPT_ENDED_SIGNAL"
 
 async def websocket_handler(websocket: websockets.ServerConnection):
     try:
+        print("e")
         if type(websocket) == websockets.server.WebSocketServerProtocol:
             filename = websocket.path[1:]
         else:
