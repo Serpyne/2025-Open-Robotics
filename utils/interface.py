@@ -17,6 +17,7 @@ import websockets
 import time
 from threading import Thread
 from string import ascii_letters
+import shutil
 
 PORT = 8000
 
@@ -71,15 +72,15 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             if not new_name: return
-            original_split = filename.split(".")
-            if len(original_split) > 1:
-                extension = "." + original_split[-1]
-                if len(new_name) >= len(extension):
-                    new_name += extension
-                else:
-                    if new_name[-len(extension):] != extension: new_name += extension
+            
+            if len(new_name) < 3:
+                new_name += ".py"
+            else:
+                if new_name[-3:] != ".py":
+                    new_name += ".py"
+                    
             os.rename(os.path.join('uploads', filename), os.path.join('uploads', new_name))
-            self.wfile.write(new_name)
+            self.wfile.write(new_name.encode())
 
         elif self.path == '/execute':
             content_length = int(self.headers['Content-Length'])
@@ -91,7 +92,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == '/list':
-            files = os.listdir('uploads')
+            files = [filename for filename in os.listdir('uploads') if ".py" in filename]
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
@@ -120,12 +121,16 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             self.wfile.write(new_filename.encode())
-        elif self.path.startswith('/delete/'):
+        elif self.path.startswith('/archive/'):
             filename = self.path[8:]
             if not filename: return
+            if filename[0] == "/": filename = filename[1:]
             filepath = os.path.join('uploads', filename)
-            if os.path.exists(filepath):
-                os.remove(filepath) 
+                
+            if not os.path.exists("uploads/archive"):
+                os.makedirs("uploads/archive")
+
+            shutil.move(filepath, "uploads/archive")
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()

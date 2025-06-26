@@ -17,9 +17,16 @@ except:
     from imutils.video import VideoStream
     ON_PI = False
 
-size = [200, 150]#[640, 480]
+# size = [200, 150]
+size = [640, 480]
 RESIZE_WIDTH = size[0]
 DISPLAY = True
+
+class Circle:
+    def __init__(self, center, radius, colour):
+        self.center = center
+        self.radius = radius
+        self.colour = colour
 
 class Camera:
     def __init__(self):
@@ -58,6 +65,10 @@ class Camera:
 
         self.center = [320, 480-20]
         
+        body_masks = [
+            Circle((320, 240), 110, (0,255,0))
+        ]
+
         self.running = False
 
     def read(self) -> cv2.typing.MatLike:
@@ -65,10 +76,18 @@ class Camera:
             return self.stream.capture_array()
         return self.stream.read()
 
+    def draw_body_masks(self, frame, filled=True):
+        _fill = 1
+        if filled: _fill = -1
+        
+        for bmask in self.body_masks:
+            if type(bmask) == Circle:
+                cv2.circle(frame, bmask.center, bmask.radius, bmask.colour, _fill)
+
     def get_mask(self, frame) -> cv2.typing.MatLike:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        cv2.circle(rgb, (320, 480), 160, (0,255,0), -1)
+        
+        self.draw_body_masks(rgb)
 
         ball_lower = (175, 0, 0)
         ball_upper = (255, 90, 35)
@@ -80,6 +99,8 @@ class Camera:
         mask = self.get_mask(frame)
         contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
+        
+        self.draw_body_masks(frame, 0)
         
         if DISPLAY: cv2.drawMarker(frame, self.center, (0, 0, 255))
         if len(contours) == 0: return frame

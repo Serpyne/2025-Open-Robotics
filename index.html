@@ -3,60 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Robotics Interface</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <title>TS UI</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.0/ace.js"></script>
     <link rel="stylesheet" href="styles/index.css">
     <link rel="stylesheet" href="styles/toast.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
-<body>
-    <h1>Team Susmita</h1>
-    
-    <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
-        <label for="file-upload" class="file-upload">Upload Script</label>
-        <input id="file-upload" type="file" name="file">
-    </form>
+<body class="dark-mode">
+    <header>
+        <div class="header-title">TS UI</div>
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+    </header>
 
-    <div style="display: flex;">
-        <button class="menu-elements" onclick="newFile()">New</button>
-        <div>
-            <input type="text" id="renameEntry">
-            <button class="menu-elements" onclick="renameFile()">Rename</button>
+    <div class="sidebar">
+        <div class="sidebar-content">
+            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">≡</button>
+            
+            <div class="rename-container">
+                <input type="text" class="rename-input" id="renameInput" placeholder="New filename">
+                <button class="btn btn-primary" onclick="renameFile()" data-tooltip="Rename">✓</button>
+            </div>
+            
+            <select id="fileList">
+                <!-- Options will be populated dynamically -->
+            </select>
+            
+            <button class="btn btn-primary" onclick="newFile()" data-tooltip="New File">New File</button>
+            <button class="btn btn-primary" onclick="loadFile()" data-tooltip="Load">Load</button>
+            <button class="btn btn-danger" onclick="confirmArchive()" data-tooltip="Archive">Archive</button>
+            
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="saveFile()" data-tooltip="Save">Save</button>
+                <button class="btn btn-primary" id="executeButton" onclick="executeFile()" data-tooltip="Run">Run</button>
+            </div>
         </div>
-        <button class="menu-elements" onclick="deleteFile()">Delete</button>
-        <button class="menu-elements" onclick="loadFile()">Load</button>
-        <!--<button class="menu-elements" onclick="saveFile()">Save</button>-->
-        <button class="menu-elements" id="executeButton" onclick="executeFile()">Execute</button>
-        <select class="menu-elements" id="fileList"></select>
-    </div>
-    <div style="display: inline-flex; width: 100%; height: 80%; flex-direction: row;">
-    <div id="editor"></div>
-    <div id="console-box">
-        <div id="console-elements">
-            <span id="autoScrollDiv">
-                <input type="checkbox" id="autoScrollButton">
-                <label for="autoScrollButton">Auto-Scroll</label>
-            </span>
-            <button id="clear-console-button" onclick="clearOutput();">Clear</button>
-        </div>
-        <p id="output"></p>
-    </div>
     </div>
 
-    <div id="toast-overlay"></div>
+    <div class="editor-container">
+        <div id="editor"></div>
+    </div>
+
+    <div class="console-container">
+        <div class="console-header">
+            <div class="console-header-title">Console Output</div>
+            <div class="console-controls">
+                <label class="autoscroll-toggle">
+                    <span>Autoscroll</span>
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="autoscrollCheckbox" checked>
+                        <span class="checkbox-slider"></span>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <div class="console-output" id="consoleOutput"></div>
+    </div>
 
     <script>
-        document.getElementById("file-upload").onchange = function() {
-            document.getElementById("upload-form").submit();
-        };
-        document.getElementById("fileList").onchange = function() {
-            loadFile();
-        };
-
-        var editor = ace.edit("editor");
+        // Initialize Ace Editor
+        const editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");
-        editor.session.setMode("ace/mode/python");
-        editor.setOption("copyWithEmptySelection", true);
+        editor.session.setMode("ace/mode/typescript");
+        editor.setOptions({
+            fontSize: "14px",
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true,
+            showPrintMargin: false
+        });
+
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            
+            themeToggle.textContent = isLight ? '☀️' : '🌙';
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            
+            // Update editor theme
+            const editor = ace.edit("editor");
+            editor.setTheme(isLight ? "ace/theme/chrome" : "ace/theme/monokai");
+            
+            // Force console to update by toggling a class
+            const consoleContainer = document.querySelector('.console-container');
+            consoleContainer.classList.toggle('light-console', isLight);
+        });
+
+        // Initialize theme
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            themeToggle.textContent = '☀️';
+            ace.edit("editor").setTheme("ace/theme/chrome");
+            document.querySelector('.console-container').classList.add('light-console');
+        }
+
+        // Sidebar toggle functionality
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '≡' : '☰';
+        });
+
+        // Console output with autoscroll
+        const consoleOutput = document.getElementById('consoleOutput');
+        const autoscrollCheckbox = document.getElementById('autoscrollCheckbox');
+        
+        function appendToConsole(text) {
+            consoleOutput.textContent += text + '\n';
+            if (autoscrollCheckbox.checked) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        }
 
         function updateFileList() {
             fetch('/list')
@@ -86,9 +144,24 @@
                 });
         }
 
-        function deleteFile() {
+        function confirmArchive() {
+            const fileList = document.getElementById('fileList');
+            const selectedFile = fileList.value;
+            
+            if (!selectedFile) {
+                appendToConsole('> No file selected');
+                return;
+            }
+
+            if (confirm(`Are you sure you want to archive "${selectedFile}"? This action cannot be undone.`)) {
+                archiveFile();
+            } else {
+                appendToConsole('> Delete canceled');
+            }
+        }
+        function archiveFile() {
             const filename = document.getElementById('fileList').value;
-            fetch(`/delete/${filename}`)
+            fetch(`/archive/${filename}`)
                 .then(response => response.text())
                 .then(data => {
                     updateFileList();
@@ -117,7 +190,7 @@
             });
         }
 
-        const autoScrollButton = document.getElementById("autoScrollButton");
+        const autoScrollButton = document.getElementById("autoscrollCheckbox");
         var autoScroll = true;
         autoScrollButton.checked = autoScroll;
         autoScrollButton.onchange = function(event) {
@@ -125,20 +198,21 @@
         }
 
         const executeButton = document.getElementById("executeButton");
-        const consoleBox = document.getElementById("console-box");
         const outputBox = document.getElementById("output");
 
         function renameFile() {
             const filename = document.getElementById('fileList').value;
-            const newName = document.getElementById('renameEntry').value;
+            const newName = document.getElementById('renameInput').value;
             fetch(`/rename`, {
                 method: 'POST',
                 body: `${filename}:${newName}`
             }).then(response => response.text())
               .then(data => {
                 updateFileList();
-                if (data)
+                if (data) {
                     setTimeout(`document.getElementById('fileList').value = '${data}';`, 200);
+                    showToast(`File '${filename}' renamed to '${data}'.`);
+                }
             })
         }
 
@@ -160,11 +234,7 @@
                     showToast(`'${filename}' ended.`)
                     return;
                 }
-                let line = event.data;
-                outputBox.innerText += line;
-                if (autoScroll == true) {
-                    consoleBox.scrollTop = consoleBox.scrollHeight;
-                }
+                appendToConsole(event.data);
             };
             } else if (data == "SCRIPT_END_SIGNAL") {
                 socket.close();
