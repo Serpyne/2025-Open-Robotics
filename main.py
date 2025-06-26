@@ -1,5 +1,6 @@
 import time
 import asyncio
+
 from utils.motors_i2c import Motor
 from utils.cam import Camera
 from threading import Thread
@@ -32,8 +33,8 @@ def mainloop(main_func, loop_forever=True, motors=True, camera=False):
         motors_ = {
             0: Motor(address=0x19),
             1: Motor(address=0x1a),
-            2: Motor(address=0x1c),
-            3: Motor(address=0x1b),
+            3: Motor(address=0x1c),
+            2: Motor(address=0x1b),
             "dribbler": Motor(address=0x1e)
         }
     if camera:

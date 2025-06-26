@@ -153,7 +153,7 @@
               .then(data => {
             console.log(data);
             if (data == "SCRIPT_START_SIGNAL") {
-            socket = new WebSocket(`ws://10.1.1.7:8765/${filename}`);
+            socket = new WebSocket(`ws://10.1.1.1:8765/${filename}`);
             socket.onmessage = function(event) {
                 if (event.data == "SCRIPT_ENDED_SIGNAL") {
                     executeButton.innerText = "Execute";
