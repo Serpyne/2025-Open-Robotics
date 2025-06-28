@@ -12,6 +12,9 @@
 <body class="dark-mode">
     <header>
         <div class="header-title">TS UI</div>
+        <div class="header-controls">
+            <button id="mobileExecuteButton" class="btn btn-primary" onclick="executeFile()" title="Run">▶ Run</button>
+        </div>
         <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
     </header>
 
@@ -100,9 +103,11 @@
         // Sidebar toggle functionality
         const sidebarToggle = document.getElementById('sidebarToggle');
         const sidebar = document.querySelector('.sidebar');
+        const mobileExecuteButton = document.getElementById('mobileExecuteButton');
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '≡' : '☰';
+            mobileExecuteButton.style.display = sidebar.classList.contains('collapsed') ? 'block' : 'none';
         });
 
         // Console output with autoscroll
@@ -110,7 +115,7 @@
         const autoscrollCheckbox = document.getElementById('autoscrollCheckbox');
         
         function appendToConsole(text) {
-            consoleOutput.textContent += text + '\n';
+            consoleOutput.textContent += text;
             if (autoscrollCheckbox.checked) {
                 consoleOutput.scrollTop = consoleOutput.scrollHeight;
             }
@@ -219,7 +224,10 @@
         var socket;
         function executeFile() {
             executeButton.innerText = "Stop";
+            mobileExecuteButton.innerText = "Stop";
+            
             const filename = document.getElementById('fileList').value;
+            
             fetch(`/execute`, {
                 method: 'POST',
                 body: filename
@@ -231,6 +239,7 @@
             socket.onmessage = function(event) {
                 if (event.data == "SCRIPT_ENDED_SIGNAL") {
                     executeButton.innerText = "Execute";
+                    mobileExecuteButton.innerText = "Execute";
                     showToast(`'${filename}' ended.`)
                     return;
                 }

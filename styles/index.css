@@ -80,7 +80,7 @@ body {
     height: 100vh;
     display: grid;
     grid-template-rows: 60px 1fr;
-    grid-template-columns: auto 1fr 1fr;
+    grid-template-columns: auto 3fr 2fr;
     grid-template-areas:
         "header header header"
         "sidebar editor console";
@@ -445,4 +445,44 @@ input:checked + .checkbox-slider:before {
 
 .sidebar.collapsed .btn:hover::after {
     opacity: 1;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+}
+
+.header-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Hide mobile execute button by default on desktop */
+#mobileExecuteButton {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    /* Show mobile execute button on mobile */
+    #mobileExecuteButton {
+        display: block;
+    }
+    
+    /* Hide the execute button in sidebar on mobile */
+    #executeButton {
+        display: none;
+    }
+}
+
+/* Show mobile execute button when sidebar is collapsed */
+.sidebar.collapsed #mobileExecuteButton {
+    display: block;
+}
+
+/* Keep original execute button visible when sidebar expanded */
+.sidebar:not(.collapsed) #mobileExecuteButton {
+    display: none;
 }
