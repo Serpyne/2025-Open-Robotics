@@ -39,24 +39,6 @@ async def main(motors, camera):
     async def turn_on_dribbler():
         motors['dribbler'].set_speed(-1)
 
-    async def drive_in_direction(angle, speed):
-        angle *= -1
-        angle -= 90
-        FL = math.sin(math.radians(35 + angle))
-        FR = math.sin(math.radians(35 - angle))
-
-        if abs(FL) >= abs(FR):
-            FR = (speed/abs(FL))*FR
-            FL = (speed/FL)*abs(FL)
-        elif abs(FL) < abs(FR):
-            FL = (speed/abs(FR))*FL
-            FR = (speed/FR)*abs(FR)
-            
-        motors[0].set_speed(FL)
-        motors[1].set_speed(FR)
-        motors[2].set_speed(-FL)
-        motors[3].set_speed(-FR)
-    
     while True:
         if camera.distance is not None and camera.angle is not None:
             d, a = camera.distance, 90 - math.degrees(camera.angle)

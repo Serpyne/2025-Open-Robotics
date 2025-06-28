@@ -66,7 +66,8 @@
         // Initialize Ace Editor
         const editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");
-        editor.session.setMode("ace/mode/typescript");
+        editor.session.setMode("ace/mode/python");
+        editor.setOption("copyWithEmptySelection", true);
         editor.setOptions({
             fontSize: "14px",
             enableBasicAutocompletion: true,
@@ -121,12 +122,16 @@
             }
         }
 
+        const select = document.getElementById('fileList');
+        select.addEventListener("change", () => {
+            setTimeout("loadFile();", 100);
+        });
+                    
         function updateFileList() {
             fetch('/list')
                 .then(response => response.text())
                 .then(data => {
                     const files = data.split('\n');
-                    const select = document.getElementById('fileList');
                     select.innerHTML = '';
                     files.forEach(file => {
                         const option = document.createElement('option');
@@ -238,8 +243,8 @@
             socket = new WebSocket(`ws://10.1.1.1:8765/${filename}`);
             socket.onmessage = function(event) {
                 if (event.data == "SCRIPT_ENDED_SIGNAL") {
-                    executeButton.innerText = "Execute";
-                    mobileExecuteButton.innerText = "Execute";
+                    executeButton.innerText = "Run";
+                    mobileExecuteButton.innerText = "Run";
                     showToast(`'${filename}' ended.`)
                     return;
                 }

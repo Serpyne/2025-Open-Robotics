@@ -297,11 +297,12 @@ select:focus {
     color: #d4d4d4;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: 95vh;
     border-left: 1px solid #333;
 }
 
 .console-header {
+    flex-shrink: 0;
     color: #9cdcfe;
     padding: 1rem;
     font-weight: bold;
@@ -382,12 +383,15 @@ input:checked + .checkbox-slider:before {
 
 .console-output {
     flex: 1;
+    flex-grow: 1;
     white-space: pre-wrap;
     overflow-wrap: break-word;
     padding: 1rem;
-    overflow-y: auto;
+    overflow-y: scroll;
+    scroll-behavior: smooth;
     font-family: 'Consolas', 'Courier New', monospace;
     line-height: 1.5;
+    height: 100%;
 }
 
 .button-group {

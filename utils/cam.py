@@ -28,6 +28,9 @@ class Circle:
         self.radius = radius
         self.colour = colour
 
+def lerp(a, b, step=0.1):
+    return a + (b - a) * step
+
 class Camera:
     def __init__(self):
         if ON_PI:
@@ -62,10 +65,18 @@ class Camera:
         
         self.distance = None
         self.angle = None
+        # Lerp stuff
+        self.targetAngle = None
+        self.targetDistance = None
 
-        self.center = [320, 480-20]
+        self.true_distance_map = {
+            "a": -0.5382952459001382,
+            "k": 94.8194330930013
+        }
+
+        self.center = [320, 240]
         
-        body_masks = [
+        self.body_masks = [
             Circle((320, 240), 110, (0,255,0))
         ]
 
@@ -95,14 +106,18 @@ class Camera:
 
         return mask
     
+    def calculate_true_distance(self, radius):
+        return self.true_distance_map["k"] * pow(radius, self.true_distance_map["a"])
+        
     def process_frame(self, frame) -> cv2.typing.MatLike:
         mask = self.get_mask(frame)
         contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
         
-        self.draw_body_masks(frame, 0)
+        if DISPLAY:
+            self.draw_body_masks(frame, 0)
+            cv2.drawMarker(frame, self.center, (255, 0, 255))
         
-        if DISPLAY: cv2.drawMarker(frame, self.center, (0, 0, 255))
         if len(contours) == 0: return frame
             
         points = []
@@ -135,17 +150,27 @@ class Camera:
         
         self.pos = Vector(center)
         delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
-        self.angle = -atan2(delta_pos[1], delta_pos[0])
-        self.distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
+        self.targetAngle = -atan2(delta_pos[1], delta_pos[0])
+        radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
         self.radius = size[0] * size[1]
         
-        if DISPLAY:   
+        self.targetDistance = self.calculate_true_distance(self.radius / radial_distance)
+        
+        if self.angle is None: self.angle = 0
+        if self.distance is None: self.distance = 0
+        self.angle = lerp(self.angle, self.targetAngle, step=0.05)
+        self.distance = lerp(self.distance, self.targetDistance, step=0.05)
+        
+        if DISPLAY:
             for i in range(len(contours)):
                 cv2.drawContours(frame, contours, i, (0, 255, 0))
 
+            pos = [int(center[0]), int(center[1])]
+
             cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.drawMarker(frame, [int(center[0]), int(center[1])], (0, 0, 255))
-                     
+            cv2.drawMarker(frame, pos, (0, 0, 255))
+            cv2.line(frame, self.center, pos, (255,0,0), 5)
+            
         return frame
     
     def start_event_loop(self):
@@ -177,7 +202,9 @@ def main():
         if DISPLAY:
             cv2.imshow("test", camera.frame)
             cv2.waitKey(1)
-
+            
+            print(int(degrees(camera.angle)), int(camera.distance))
+            
 if __name__ == "__main__":
     try:
         camera = Camera()
