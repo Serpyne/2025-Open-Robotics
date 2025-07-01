@@ -7,7 +7,11 @@
 import http.server
 import socketserver
 import os
-import cgi
+try:
+    import cgi
+    print("On Raspberry Pi 5")
+except:
+    print("On Laptop")
 import sys
 import signal
 import subprocess
@@ -154,16 +158,13 @@ execute_filename = None
 async def execute_script_thread(websocket, filename):
     global glob_proc, ran_once
     args = [python_exec, "-u", filename]
-    print(filename)
     glob_proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    print("EXEC")
     for line in glob_proc.stdout:
         print(line)
         await websocket.send(line.decode())
         time.sleep(0.001)
 
     # Process terminated/ended on its own
-    print("output thread ended")
     e = subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     await websocket.send("SCRIPT_ENDED_SIGNAL")
     if glob_proc: glob_proc.terminate()
@@ -172,18 +173,16 @@ async def execute_script_thread(websocket, filename):
 
 def toggle_process(filename):
     global ran_once, glob_proc, execute_filename
-    print("EXECUTE BUTTON CLICKED")
     if not ran_once:
-        print("Running")
+        # Running
         execute_filename = filename
         ran_once = True
         return "SCRIPT_START_SIGNAL"
     else:
-        print("Stopping")
+        # Stopping
         if glob_proc: glob_proc.terminate()
         glob_proc = None
         ran_once = False
-        print("BRUHUIBDBHFD")
         e = subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         return "SCRIPT_ENDED_SIGNAL"
 

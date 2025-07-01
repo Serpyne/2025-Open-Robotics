@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TS UI</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.0/ace.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mistreevous@latest/dist/mistreevous.min.js"></script>
     <link rel="stylesheet" href="styles/index.css">
     <link rel="stylesheet" href="styles/toast.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
 <body class="dark-mode">
     <header>
-        <div class="header-title">TS UI</div>
+        <div class="header-title">TS Interface</div>
         <div class="header-controls">
             <button id="mobileExecuteButton" class="btn btn-primary" onclick="executeFile()" title="Run">▶ Run</button>
         </div>
@@ -27,9 +28,7 @@
                 <button class="btn btn-primary" onclick="renameFile()" data-tooltip="Rename">✓</button>
             </div>
             
-            <select id="fileList">
-                <!-- Options will be populated dynamically -->
-            </select>
+            <select id="fileList"></select>
             
             <button class="btn btn-primary" onclick="newFile()" data-tooltip="New File">New File</button>
             <button class="btn btn-primary" onclick="loadFile()" data-tooltip="Load">Load</button>
@@ -62,8 +61,115 @@
         <div class="console-output" id="consoleOutput"></div>
     </div>
 
+    <div class="interative-container">
+        <div class="behaviour-tree-container">
+            <div class="dropdown-header" id="bt-dropdownHeader">
+                <span>Behaviour Tree</span>
+                <svg id="bt-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 21 12 15 18 21"></polyline>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="bt-dropdown-content">
+                <textarea 
+                    class="behaviour-tree-display"
+                    id="behaviour-tree-display">
+root {
+    sequence {
+        action [Walk]
+        action [Fall]
+        action [Laugh]
+    }
+}
+                </textarea>
+            </div>
+
+            <script>
+                const { BehaviourTree, State } = mistreevous;
+
+                const behaviourTreeTextEntry = document.getElementById("behaviour-tree-display");
+                function loadTree() {
+                    const treeDefinition = behaviourTreeTextEntry.innerHTML;
+                    console.log(treeDefinition);
+                    
+                    const agent = {
+                        Walk: () => {
+                            console.log("walking!");
+                            return State.SUCCEEDED;
+                        },
+                        Fall: () => {
+                            console.log("falling!");
+                            return State.SUCCEEDED;
+                        },
+                        Laugh: () => {
+                            console.log("laughing!");
+                            return State.SUCCEEDED;
+                        },
+                    };
+
+                    const tree = new BehaviourTree(treeDefinition, agent);
+                    tree.step();
+                }
+
+                window.addEventListener("load", () => {setTimeout("loadTree();", 100)})
+            </script>
+        </div>
+        <div class="field-display-container">
+            <div class="dropdown-header" id="fd-dropdownHeader">
+                <span>Show Field</span>
+                <svg id="fd-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 21 12 15 18 21"></polyline>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="fd-dropdown-content">
+                <canvas 
+                    class="field-display"
+                    id="field-display">
+                </canvas>
+            </div>
+            
+            <script>
+                const clickDelay = 100;
+                const BTDropdownContainer = document.getElementById('behaviour-tree-container')
+                const BTDropdownHeader = document.getElementById('bt-dropdownHeader');
+                const BTDropdownContent = document.getElementById('bt-dropdown-content');
+                const BTDropdownIcon = document.getElementById('bt-dropdown-icon');
+                const BTTextarea = document.getElementById('behaviour-tree-display');
+
+                BTDropdownHeader.addEventListener('click', () => {
+                    BTDropdownHeader.classList.toggle('active');
+                    BTDropdownContent.classList.toggle('open');
+                    BTDropdownIcon.classList.toggle('rotate');
+                    
+                    if (BTDropdownContent.classList.contains('open')) {
+                        setTimeout(() => {
+                            BTTextarea.focus();
+                        }, clickDelay);
+                    }
+                });
+
+                const FDDropdownContainer = document.getElementById('field-display-container')
+                const FDDropdownHeader = document.getElementById('fd-dropdownHeader');
+                const FDDropdownContent = document.getElementById('fd-dropdown-content');
+                const FDDropdownIcon = document.getElementById('fd-dropdown-icon');
+                const FDTextarea = document.getElementById('field-display');
+
+                FDDropdownHeader.addEventListener('click', () => {
+                    FDDropdownHeader.classList.toggle('active');
+                    FDDropdownContent.classList.toggle('open');
+                    FDDropdownIcon.classList.toggle('rotate');
+                    
+                    if (FDDropdownContent.classList.contains('open')) {
+                        setTimeout(() => {
+                            FDTextarea.focus();
+                        }, clickDelay);
+                    }
+                });
+            </script>
+
+        </div>
+    </div>
+
     <script>
-        // Initialize Ace Editor
         const editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/python");
@@ -75,7 +181,6 @@
             showPrintMargin: false
         });
 
-        // Theme toggle functionality
         const themeToggle = document.getElementById('themeToggle');
         themeToggle.addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
@@ -84,16 +189,13 @@
             themeToggle.textContent = isLight ? '☀️' : '🌙';
             localStorage.setItem('theme', isLight ? 'light' : 'dark');
             
-            // Update editor theme
             const editor = ace.edit("editor");
             editor.setTheme(isLight ? "ace/theme/chrome" : "ace/theme/monokai");
             
-            // Force console to update by toggling a class
             const consoleContainer = document.querySelector('.console-container');
             consoleContainer.classList.toggle('light-console', isLight);
         });
 
-        // Initialize theme
         if (localStorage.getItem('theme') === 'light') {
             document.body.classList.add('light-mode');
             themeToggle.textContent = '☀️';
@@ -101,7 +203,6 @@
             document.querySelector('.console-container').classList.add('light-console');
         }
 
-        // Sidebar toggle functionality
         const sidebarToggle = document.getElementById('sidebarToggle');
         const sidebar = document.querySelector('.sidebar');
         const mobileExecuteButton = document.getElementById('mobileExecuteButton');
@@ -111,7 +212,6 @@
             mobileExecuteButton.style.display = sidebar.classList.contains('collapsed') ? 'block' : 'none';
         });
 
-        // Console output with autoscroll
         const consoleOutput = document.getElementById('consoleOutput');
         const autoscrollCheckbox = document.getElementById('autoscrollCheckbox');
         
@@ -227,6 +327,7 @@
         }
 
         var socket;
+        var codeRunning = false;
         function executeFile() {
             executeButton.innerText = "Stop";
             mobileExecuteButton.innerText = "Stop";
@@ -240,8 +341,9 @@
               .then(data => {
             console.log(data);
             if (data == "SCRIPT_START_SIGNAL") {
-            socket = new WebSocket(`ws://10.1.1.1:8765/${filename}`);
-            socket.onmessage = function(event) {
+                codeRunning = true;
+                socket = new WebSocket(`ws://10.1.1.1:8765/${filename}`);
+                socket.onmessage = function(event) {
                 if (event.data == "SCRIPT_ENDED_SIGNAL") {
                     executeButton.innerText = "Run";
                     mobileExecuteButton.innerText = "Run";
@@ -252,6 +354,7 @@
             };
             } else if (data == "SCRIPT_END_SIGNAL") {
                 socket.close();
+                codeRunning = false;
             }
             });
         }
