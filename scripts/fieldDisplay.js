@@ -8,13 +8,13 @@ let SW = FDcontainer.scrollWidth;
 let SH = SW * ratio;
 let scale = SW / 182;
 if (SH > FDcontainer.scrollHeight) {
-    SH = document.documentElement.clientHeight * 0.65;
+    SH = document.documentElement.clientHeight * 0.73;
     SW = SH / ratio;
     scale = SH / 243;
 } 
 FDcanvas.width = SW;
 FDcanvas.height = SH;
-
+FDcanvas.left = FDcontainer.scrollWidth - SW / 2;
 
 function lerp(a, b, t = 0.1) {
     return a + (b - a) * t;
@@ -226,6 +226,10 @@ function update() {
     let squaredDist = Math.pow((ball.pos[0] - mouse[0]) * (SW / 2), 2) + Math.pow((ball.pos[1] - mouse[1]) * (SH / 2), 2);
     if (squaredDist < Math.pow(4 * ball.radius * scale, 2)) {selectedElement = BALL;}
     
+    FDcontext.font = "21px Arial";
+    FDcontext.fillStyle = "#fff";
+    FDcontext.fillText("⇖", (1 + mouse[0]) * SW/2 - 3, (1 + mouse[1]) * SH/2 + 12);
+
     if (mouseDown || holding) {
         switch (selectedElement) {
             case BALL:
