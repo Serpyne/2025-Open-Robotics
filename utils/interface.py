@@ -97,7 +97,6 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
         elif self.path == '/bt':
             content_length = int(self.headers['Content-Length'])
-            print(f"Content Length: {content_length}")
             if content_length == 0:
                 # Get BT
                 self.send_response(200)
@@ -112,6 +111,29 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 text = self.rfile.read(content_length).decode('-utf-8')
                 with open(os.path.join(os.path.dirname(__file__), "bt.json"), "w") as f:
                     json.dump(json.loads(text), f, indent=4)
+                    f.close()
+                self.send_response(200)
+                self.end_headers()
+
+        elif self.path == '/target':
+            content_length = int(self.headers['Content-Length'])
+            print(content_length)
+            if content_length == 0:
+                self.send_response(200)
+                self.end_headers()
+                with open(os.path.join(os.path.dirname(__file__), "robot.json"), "r") as f:
+                    data = json.load(f)
+                    f.close()
+                self.wfile.write(json.dumps(data).encode())
+                return
+            else:
+                text = self.rfile.read(content_length).decode('-utf-8')
+                print(text)
+                with open(os.path.join(os.path.dirname(__file__), "robot.json"), "r") as f:
+                    data = json.load(f)
+                data["targetPos"] = text.split(", ")[:2]
+                with open(os.path.join(os.path.dirname(__file__), "robot.json"), "w") as f:
+                    json.dump(data, f, indent=4)
                     f.close()
                 self.send_response(200)
                 self.end_headers()
