@@ -50,9 +50,11 @@ function appendToConsole(text) {
     }
 }
 
+const fileList = document.getElementById('fileList');
+
 const select = document.getElementById('fileList');
 select.addEventListener("change", () => {
-    setTimeout("loadFile();", 100);
+    setTimeout("loadFile();", 200);
 });
             
 function updateFileList() {
@@ -76,14 +78,13 @@ function newFile() {
             let filename = data.toString();
             console.log(filename);
             updateFileList();
-            setTimeout(`document.getElementById('fileList').value = '${filename}';`, 10);
-            setTimeout("loadFile();", 100);
+            setTimeout(`document.getElementById('fileList').value = '${filename}';`, 100);
+            setTimeout("loadFile();", 200);
             showToast(`New file '${filename}' created.`);
         });
 }
 
 function confirmArchive() {
-    const fileList = document.getElementById('fileList');
     const selectedFile = fileList.value;
     
     if (!selectedFile) {
@@ -98,7 +99,7 @@ function confirmArchive() {
     }
 }
 function archiveFile() {
-    const filename = document.getElementById('fileList').value;
+    const filename = fileList.value;
     fetch(`/archive/${filename}`)
         .then(response => response.text())
         .then(data => {
@@ -109,7 +110,7 @@ function archiveFile() {
 }
 
 function loadFile() {
-    const filename = document.getElementById('fileList').value;
+    const filename = fileList.value;
     fetch(`/load/${filename}`)
         .then(response => response.text())
         .then(data => {
@@ -118,7 +119,7 @@ function loadFile() {
 }
 
 function saveFile() {
-    const filename = document.getElementById('fileList').value;
+    const filename = fileList.value;
     const content = editor.getValue();
     fetch('/save', {
         method: 'POST',
@@ -139,7 +140,7 @@ const executeButton = document.getElementById("executeButton");
 const outputBox = document.getElementById("output");
 
 function renameFile() {
-    const filename = document.getElementById('fileList').value;
+    const filename = fileList.value;
     const newName = document.getElementById('renameInput').value;
     fetch(`/rename`, {
         method: 'POST',
@@ -148,7 +149,7 @@ function renameFile() {
         .then(data => {
         updateFileList();
         if (data) {
-            setTimeout(`document.getElementById('fileList').value = '${data}';`, 200);
+            setTimeout(`fileList.value = '${data}';`, 200);
             showToast(`File '${filename}' renamed to '${data}'.`);
         }
     })
@@ -160,7 +161,7 @@ function executeFile() {
     executeButton.innerText = "Stop";
     mobileExecuteButton.innerText = "Stop";
     
-    const filename = document.getElementById('fileList').value;
+    const filename = fileList.value;
     
     fetch(`/execute`, {
         method: 'POST',
@@ -238,5 +239,16 @@ function showToast(
     document.body.appendChild(box)
 };
 
+function getLastOpenedFile() {
+    fetch(`/load/`)
+        .then(response => response.text())
+        .then(data => {
+            if (!data)
+                return;
+            fileList.value = data;
+            setTimeout("loadFile();", 150);
+        });
+}
+
 updateFileList();
-setTimeout("loadFile();", 150);
+setTimeout("getLastOpenedFile();", 200);

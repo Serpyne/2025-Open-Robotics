@@ -25,6 +25,7 @@ from string import ascii_letters
 import shutil
 
 PORT = 8000
+CONFIG_PATH = os.path.join(os.path.dirname(__name__), "utils/config.json")
 
 def random_string(count):
     return "".join([random.choice(ascii_letters) for i in range(count)])
@@ -36,6 +37,18 @@ class CustomServer(socketserver.TCPServer):
         self.proc = None
 
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
+    def get_config(self) -> str:
+        with open(CONFIG_PATH, "r") as f:
+            data = json.load(f)
+            f.close()
+        return data
+    def save_last_opened_file(self, filename: str):
+        data = self.get_config()
+        data["lastOpenedFile"] = filename
+        with open(CONFIG_PATH, "w") as f:
+            json.dump(data, f, indent=4, sort_keys=True)
+            f.close()
+    
     def do_POST(self):
         if self.path == '/upload':
             form = cgi.FieldStorage(
@@ -59,6 +72,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(303)
             self.send_header('Location', '/')
             self.end_headers()
+            
         elif self.path == '/save':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
@@ -70,6 +84,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"File saved successfully")
+            
         elif self.path == '/rename':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('-utf-8')
@@ -94,6 +109,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             res = toggle_process(filename)
             if res: self.wfile.write(res.encode())
+            
+            self.save_last_opened_file(filename)
 
         elif self.path == '/bt':
             content_length = int(self.headers['Content-Length'])
@@ -145,6 +162,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             self.wfile.write('\n'.join(files).encode())
+            
         elif self.path == "/stop":
             print(self.server.proc)
             self.server.proc.send_signal(signal.SIGINT)
@@ -152,15 +170,33 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Location', '/')
             self.end_headers()
+            
         elif self.path.startswith('/load/'):
             filename = self.path[6:]
-            if not filename: return
+            
+            if not filename:
+                data = self.get_config()
+                
+                if "lastOpenedFile" not in data:
+                    self.send_response(402)
+                    self.end_headers()
+                    return
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(data["lastOpenedFile"].encode())
+                return
+            
             with open(os.path.join('uploads', filename), 'r') as f:
                 content = f.read()
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             self.wfile.write(content.encode())
+            
+            self.save_last_opened_file(filename)
+            
         elif self.path.startswith('/new'):
             new_filename = f'new-file-{random_string(6)}.py'
             with open(os.path.join('uploads', new_filename), 'w') as f:
@@ -169,6 +205,9 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             self.wfile.write(new_filename.encode())
+            
+            self.save_last_opened_file(new_filename)
+            
         elif self.path.startswith('/archive/'):
             filename = self.path[8:]
             if not filename: return

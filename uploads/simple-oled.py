@@ -1,3 +1,9 @@
+"""
+
+This uses the 0.96in oled screen display, connected via I2C connection.
+
+"""
+
 import sys
 import os
 import asyncio

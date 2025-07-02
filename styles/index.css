@@ -499,9 +499,9 @@ input:checked + .checkbox-slider:before {
     width: 50%;
     height: 100%;
 }
-.interative-container {
+.interactive-container {
     width: 90vw;
-    height: 80vh;
+    height: 0;
     right: 5vw;
     bottom: 0px;
     position: absolute;
@@ -509,6 +509,10 @@ input:checked + .checkbox-slider:before {
     grid-template-columns: auto 1fr 1fr;
     display: flex;
     align-items: flex-end;
+    transition: 0.5s;
+}
+.interactive-container.open {
+    height: 80vh;
 }
 .behaviour-tree-display {
     font-size: 11px;
