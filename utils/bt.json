@@ -1,0 +1,124 @@
+{
+    "type": "root",
+    "child": {
+        "type": "selector",
+        "children": [
+            {
+                "type": "sequence",
+                "children": [
+                    {
+                        "type": "action",
+                        "call": "checkIfBallIsNotVisible"
+                    },
+                    {
+                        "type": "retry",
+                        "child": {
+                            "type": "action",
+                            "call": "driveToGoal"
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "sequence",
+                "children": [
+                    {
+                        "type": "action",
+                        "call": "checkIfBallIsVisible"
+                    },
+                    {
+                        "type": "selector",
+                        "children": [
+                            {
+                                "type": "sequence",
+                                "children": [
+                                    {
+                                        "type": "action",
+                                        "call": "conditionBallBehind"
+                                    },
+                                    {
+                                        "type": "retry",
+                                        "child": {
+                                            "type": "sequence",
+                                            "children": [
+                                                {
+                                                    "type": "action",
+                                                    "call": "predictBallPath"
+                                                },
+                                                {
+                                                    "type": "action",
+                                                    "call": "driveToBall"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "sequence",
+                                "children": [
+                                    {
+                                        "type": "action",
+                                        "call": "conditionBallFront"
+                                    },
+                                    {
+                                        "type": "retry",
+                                        "child": {
+                                            "type": "action",
+                                            "call": "collectBall"
+                                        }
+                                    },
+                                    {
+                                        "type": "sequence",
+                                        "children": [
+                                            {
+                                                "type": "action",
+                                                "call": "determineSide"
+                                            },
+                                            {
+                                                "type": "action",
+                                                "call": "saveTurnDirectionToBlackboard"
+                                            },
+                                            {
+                                                "type": "action",
+                                                "call": "saveTargetPosToBlackboard"
+                                            },
+                                            {
+                                                "type": "retry",
+                                                "child": {
+                                                    "type": "action",
+                                                    "call": "turnToFaceDirection"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "retry",
+                                        "child": {
+                                            "type": "action",
+                                            "call": "driveToTargetPos"
+                                        }
+                                    },
+                                    {
+                                        "type": "retry",
+                                        "child": {
+                                            "type": "action",
+                                            "call": "turnToFaceGoal"
+                                        }
+                                    },
+                                    {
+                                        "type": "retry",
+                                        "child": {
+                                            "type": "action",
+                                            "call": "shoot"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

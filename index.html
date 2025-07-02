@@ -87,30 +87,66 @@ root {
                 const { BehaviourTree, State } = mistreevous;
 
                 const behaviourTreeTextEntry = document.getElementById("behaviour-tree-display");
-                function loadTree() {
-                    const treeDefinition = behaviourTreeTextEntry.innerHTML;
-                    console.log(treeDefinition);
-                    
-                    const agent = {
-                        Walk: () => {
-                            console.log("walking!");
-                            return State.SUCCEEDED;
-                        },
-                        Fall: () => {
-                            console.log("falling!");
-                            return State.SUCCEEDED;
-                        },
-                        Laugh: () => {
-                            console.log("laughing!");
-                            return State.SUCCEEDED;
-                        },
-                    };
+                var treeDefinition, agent, tree;
+                var ballVisible = false;
+                var ballFront = false;
+                
+                agent = {
+                    driveToGoal: () => {console.log("driveToGoal"); return State.SUCCEEDED;},
+                    driveToBall: () => {console.log("driveToBall"); return State.SUCCEEDED;},
+                    predictBallPath: () => {console.log("predictBallPath"); return State.SUCCEEDED;},
+                    collectBall: () => {console.log("collectBall"); return State.SUCCEEDED;},
+                    determineSide: () => {console.log("determineSide"); return State.SUCCEEDED;},
+                    saveTurnDirectionToBlackboard: () => {console.log("saveTurnDirectionToBlackboard"); return State.SUCCEEDED;},
+                    saveTargetPosToBlackboard: () => {console.log("saveTargetPosToBlackboard"); return State.SUCCEEDED;},
+                    turnToFaceDirection: () => {console.log("turnToFaceDirection"); return State.SUCCEEDED;},
+                    driveToTargetPos: () => {console.log("driveToTargetPos"); return State.SUCCEEDED;},
+                    turnToFaceGoal: () => {console.log("turnToFaceGoal"); return State.SUCCEEDED;},
+                    shoot: () => {console.log("shoot"); return State.SUCCEEDED;},
 
-                    const tree = new BehaviourTree(treeDefinition, agent);
+                    checkIfBallIsNotVisible: () => {if (!ballVisible) {return State.SUCCEEDED;} else {return State.FAILED;}},
+                    checkIfBallIsVisible: () => {if (ballVisible) {return State.SUCCEEDED;} else {return State.FAILED;}},
+                    conditionBallBehind: () => {if (!ballFront) {return State.SUCCEEDED;} else {return State.FAILED;}},
+                    conditionBallFront: () => {if (ballFront) {return State.SUCCEEDED;} else {return State.FAILED;}}
+                };
+
+                function startTree() {
+                    tree = new BehaviourTree(treeDefinition, agent);
                     tree.step();
                 }
 
-                window.addEventListener("load", () => {setTimeout("loadTree();", 100)})
+                function loadTree() {
+                    fetchTree().then(data => {
+                        treeDefinition = JSON.parse(data);
+                        behaviourTreeTextEntry.value = JSON.stringify(treeDefinition, null, 4);
+                        console.log(treeDefinition);
+                        
+                        startTree();
+                    });
+                }
+
+                function fetchTree() {
+                    return fetch(`/bt`, {
+                        method: 'POST',
+                        body: ""
+                    }).then(response => response.text())
+                }
+                function saveTree(_json) {
+                    return fetch(`/bt`, {
+                        method: 'POST',
+                        body: JSON.stringify(_json)
+                    }).then(response => response.text())
+                }
+
+                window.addEventListener("load", () => {setTimeout("loadTree();", 100)});
+                behaviourTreeTextEntry.addEventListener("input", () => {
+                    try {
+                        treeDefinition = JSON.parse(behaviourTreeTextEntry.value);
+                        saveTree(treeDefinition);
+                    } catch (e) {
+                        console.log("Invalid ", e);
+                    }
+                });
             </script>
         </div>
         <div class="field-display-container">

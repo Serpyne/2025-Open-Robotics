@@ -19,6 +19,7 @@ import random
 import asyncio
 import websockets
 import time
+import json
 from threading import Thread
 from string import ascii_letters
 import shutil
@@ -93,6 +94,27 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             res = toggle_process(filename)
             if res: self.wfile.write(res.encode())
+
+        elif self.path == '/bt':
+            content_length = int(self.headers['Content-Length'])
+            print(f"Content Length: {content_length}")
+            if content_length == 0:
+                # Get BT
+                self.send_response(200)
+                self.end_headers()
+                with open(os.path.join(os.path.dirname(__file__), "bt.json"), "r") as f:
+                    data = json.load(f)
+                    f.close()
+                self.wfile.write(json.dumps(data).encode())
+                return
+            else:
+                # Save BT
+                text = self.rfile.read(content_length).decode('-utf-8')
+                with open(os.path.join(os.path.dirname(__file__), "bt.json"), "w") as f:
+                    json.dump(json.loads(text), f, indent=4)
+                    f.close()
+                self.send_response(200)
+                self.end_headers()
 
     def do_GET(self):
         if self.path == '/list':
