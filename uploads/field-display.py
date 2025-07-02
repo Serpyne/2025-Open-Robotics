@@ -1,3 +1,8 @@
+"""
+
+Interface the ball information from the camera (and other sensors) into the UI field display.
+
+"""
 
 import sys
 import os
@@ -8,9 +13,6 @@ sys.path.append(parent_dir)
 from main import mainloop
 
 class Robot:
-    def __init__(self):
-        ...
-        
     def calculateFinalDirection(self, angle: float, distance: float):
         
         def anglePolynomial(x: float):

@@ -5,14 +5,17 @@ from utils.motors_i2c import Motor
 from utils.cam import Camera
 from utils.screen import Screen
 from utils.compass import Compass
+from utils.tof import TOFChain
 from threading import Thread
 from utils.interface import start_websocket, start_server
+
+TOF_ADDRESSES = [0x55]
 
 motors_ = {}
 camera_ = None
 screen_ = None
 compass_ = None
-tofs_ = None
+tofchain_ = None
 
 async def initialise_event_loop(main_func, motors: bool, camera: bool, screen: bool, compass: bool, tofs: bool):
     args = []
@@ -28,7 +31,8 @@ async def initialise_event_loop(main_func, motors: bool, camera: bool, screen: b
     if compass:
         args.append(compass_)
     if tofs:
-        ...
+        args.append(tofchain_)
+        
     main_task = asyncio.create_task(main_func(*args))
     await asyncio.gather(main_task)
 
@@ -38,7 +42,7 @@ def stop_motors():
         motor.set_speed(0)
 
 def mainloop(main_func, loop_forever=True, motors=True, camera=False, screen=False, compass=False, tofs=False):
-    global motors_, camera_, screen_, compass_, tofs_
+    global motors_, camera_, screen_, compass_, tofchain_
 
     if motors:
         motors_ = {
@@ -54,8 +58,8 @@ def mainloop(main_func, loop_forever=True, motors=True, camera=False, screen=Fal
         screen_ = Screen()
     if compass:
         compass_ = Compass()
-    if tofs_:
-        ...
+    if tofs:
+        tofchain_ = TOFChain(TOF_ADDRESSES)
 
     try:
         loop = asyncio.get_event_loop()

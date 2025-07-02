@@ -271,7 +271,6 @@ def toggle_process(filename):
 
 async def websocket_handler(websocket: websockets.ServerConnection):
     try:
-        print("e")
         if type(websocket) == websockets.server.WebSocketServerProtocol:
             filename = websocket.path[1:]
         else:

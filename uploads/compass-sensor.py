@@ -1,3 +1,11 @@
+"""
+
+Example of the bno08x compass sensor.
+
+Compass:
+    read(): float -> orientation of the compass in degrees.
+
+"""
 
 import sys
 import os
