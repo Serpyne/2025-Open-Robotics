@@ -509,6 +509,7 @@ input:checked + .checkbox-slider:before {
     display: flex;
     align-items: flex-end;
     transition: 0.5s;
+    z-index: 10;
 }
 .interactive-container.open {
     height: 80vh;

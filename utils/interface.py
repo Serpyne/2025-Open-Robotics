@@ -7,10 +7,12 @@
 import http.server
 import socketserver
 import os
+device = "pi"
 try:
     import cgi
     print("On Raspberry Pi 5")
 except:
+    device = "laptop"
     print("On Laptop")
 import sys
 import signal
@@ -248,7 +250,7 @@ async def execute_script_thread(websocket, filename):
         time.sleep(0.001)
 
     # Process terminated/ended on its own
-    e = subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if device == "pi": e = subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     await websocket.send("SCRIPT_ENDED_SIGNAL")
     if glob_proc: glob_proc.terminate()
     glob_proc = None
@@ -266,7 +268,7 @@ def toggle_process(filename):
         if glob_proc: glob_proc.terminate()
         glob_proc = None
         ran_once = False
-        e = subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if device == "pi": e = subprocess.Popen([python_exec, "-u", "utils/stop_motors.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         return "SCRIPT_ENDED_SIGNAL"
 
 async def websocket_handler(websocket: websockets.ServerConnection):

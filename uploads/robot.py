@@ -32,7 +32,7 @@ class RobotState:
 class Utilities:
     def __init__(self, motors=None, camera=None, compass=None, tofs=None):
         self.motors = motors
-        self.camera = cameras
+        self.camera = camera
         self.compass = compass
         self.tofs = tofs
 class Robot:
@@ -44,6 +44,8 @@ class Robot:
         
         self.state: RobotState = RobotState()
         self.utils: Utilities = Utilities(motors, camera, compass, tofs)
+
+        self.update_interval: float = 0.1
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
         
@@ -61,9 +63,9 @@ class Robot:
         scaled_angle: float = mapped_angle * max(distance_poly(distance), 0)
         
         if is_negative:
-            scaled_angle *= -1;
+            scaled_angle *= -1
             
-        return scaled_angle;
+        return scaled_angle
 
     async def drive_in_direction(self, angle: float, speed: float):
         # might need to check if ts works for the motor angle setup
@@ -79,16 +81,20 @@ class Robot:
             FL = (speed/abs(FR))*FL
             FR = (speed/FR)*abs(FR)
             
-        motors[0].set_speed(FL)
-        motors[1].set_speed(FR)
-        motors[2].set_speed(-FL)
-        motors[3].set_speed(-FR)
+        self.utils.motors[0].set_speed(FL)
+        self.utils.motors[1].set_speed(FR)
+        self.utils.motors[2].set_speed(-FL)
+        self.utils.motors[3].set_speed(-FR)
     async def brake(self):
+        self.utils.motors[0].set_speed(0)
+        self.utils.motors[1].set_speed(0)
+        self.utils.motors[2].set_speed(0)
+        self.utils.motors[3].set_speed(0)
     
     async def enable_dribbler(self):
-        motors['dribbler'].set_speed(-1)
+        self.utils.motors['dribbler'].set_speed(-1)
     async def stop_dribbler(self):
-        motors['dribbler'].set_speed(0)
+        self.utils.motors['dribbler'].set_speed(0)
     
     def determine_position(self) -> Vector:
         ...
@@ -104,6 +110,8 @@ class Robot:
         self.state.velocity
         tof_distances: list[float] = self.utils.tofs.read()
         
+        ...
+
         # print for debugging
         info = {
             "Ball Angle": self.state.ball_angle,

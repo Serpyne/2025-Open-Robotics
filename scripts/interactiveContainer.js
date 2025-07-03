@@ -6,9 +6,21 @@ const BTDropdownContent = document.getElementById('bt-dropdown-content');
 const BTDropdownIcon = document.getElementById('bt-dropdown-icon');
 const BTTextarea = document.getElementById('behaviour-tree-display');
 
+let btOpen = false;
+let fdOpen = false;
+
+function toggle() {
+    if (!fdOpen && !btOpen)
+        interactiveContainer.classList.remove('open');
+}
+
 BTDropdownHeader.addEventListener('click', () => {
     BTDropdownHeader.classList.toggle('active');
-    interactiveContainer.classList.toggle('open');
+    if (!btOpen) {
+        interactiveContainer.classList.add('open');
+    }
+    btOpen = !btOpen;
+    toggle();
     BTDropdownContent.classList.toggle('open');
     BTDropdownIcon.classList.toggle('rotate');
     
@@ -28,7 +40,12 @@ const FDTextarea = document.getElementById('field-display');
 FDDropdownHeader.addEventListener('click', () => {
     FDDropdownHeader.classList.toggle('active');
     FDDropdownContent.classList.toggle('open');
-    interactiveContainer.classList.toggle('open');
+    
+    if (!fdOpen) {
+        interactiveContainer.classList.add('open');
+    }
+    fdOpen = !fdOpen;
+    toggle();
     FDDropdownIcon.classList.toggle('rotate');
     
     if (FDDropdownContent.classList.contains('open')) {
