@@ -118,7 +118,9 @@ class Camera:
             self.draw_body_masks(frame, 0)
             cv2.drawMarker(frame, self.center, (255, 0, 255))
         
-        if len(contours) == 0: return frame
+        if len(contours) == 0:
+            self.angle = self.distance = None
+            return frame
             
         points = []
         contours = sorted(contours, key=lambda x: x.size, reverse=True)
@@ -140,10 +142,15 @@ class Camera:
             if DISPLAY: cv2.drawMarker(frame, center.int(), (255, 0, 255))
             points += [x for x in cnt]
                 
-        if len(points) <= 4: return frame
+        if len(points) <= 4:
+            self.angle = self.distance = None
+            return frame
+            
         c = cv2.convexHull(np.array(points, dtype=np.int32))
         
-        if c.size <= 4 * 2: return frame
+        if c.size <= 4 * 2: 
+            self.angle = self.distance = None
+            return frame
 
         ellipse = cv2.fitEllipse(c)
         center, size, angle = ellipse
@@ -203,7 +210,10 @@ def main():
             cv2.imshow("test", camera.frame)
             cv2.waitKey(1)
             
-            print(int(degrees(camera.angle)), int(camera.distance))
+            if None in [camera.angle, camera.distance]:
+                print("Ball covered")
+            else:
+                print(f"Angle: {int(degrees(camera.angle))} | Distance: {int(camera.distance)}")
             
 if __name__ == "__main__":
     try:

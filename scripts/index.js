@@ -171,7 +171,8 @@ function executeFile() {
     console.log(data);
     if (data == "SCRIPT_START_SIGNAL") {
         codeRunning = true;
-        socket = new WebSocket(`ws://10.1.1.1:8765/${filename}`);
+        console.log(window.href);
+        socket = new WebSocket(`ws://raspberrypi.local:8765/${filename}`);
         socket.onmessage = function(event) {
         if (event.data == "SCRIPT_ENDED_SIGNAL") {
             executeButton.innerText = "Run";
