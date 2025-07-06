@@ -8,7 +8,7 @@ class TOF:
         
         self.true_distance = 0
         self.distance = 0
-        self.n = 12
+        self.n = 15
         self.past_distances = [0] * self.n
         
         if self.parent is None:
@@ -24,7 +24,7 @@ class TOF:
         if self.distance == 0:
             self.distance = self.true_distance
         else:
-            self.distance += (self.true_distance - self.distance) * 0.1
+            self.distance += (self.true_distance - self.distance) * 0.06
         self.past_distances.pop(0)
         self.past_distances.append(self.distance)
         return sum(self.past_distances) / self.n

@@ -24,16 +24,16 @@ from utils.tof import TOFChain
 import pygame
 from pygame.locals import *
 from threading import Thread
-from scipy.optimize import minimize
 import numpy as np
 
 from time import perf_counter
 
+S = 5
 
-PW, PH = 100 * 3, 145 * 3
-FW, FH = 115 * 3, 159 * 3
-# PW, PH = 158 * 3, 219 * 3
-# FW, FH = 182 * 3, 243 * 3
+PW, PH = 100 * S, 145 * S
+FW, FH = 115 * S, 159 * S
+# PW, PH = 158 * S, 219 * S
+# FW, FH = 182 * S, 243 * S
 SW, SH = FW + 400, FH + 400
 PI = math.pi
 
@@ -133,33 +133,21 @@ class Robot:
             a = math.radians(TOF_DIRECTIONS[i] + self.state.heading)
             d = distance + TOF_RADIUS - TOF_OFFSET
             point = [d * math.sin(-a), d * math.cos(a)]
-            pygame.draw.circle(self.screen, (255, 255, 0), (point[0] / 10 + self.centre[0], SH - (point[1] / 10 + self.centre[1])), 3)
+            pygame.draw.circle(self.screen, (255, 255, 0), (point[0] * S / 10 + self.centre[0], SH - (point[1] * S / 10 + self.centre[1])), 3)
             points.append(point)
-        points = np.array(points)
     
         w, h = 1150, 1590
         # w, h = 1820, 2430
-        
-        def point_to_aabb_perimeter_dist(px: float, py: float, x0: float, y0: float, w: float, h: float) -> float:
-            cx = np.clip(px, x0, x0 + w)
-            cy = np.clip(py, y0, y0 + h)
-            if x0 < px < x0 + w and y0 < py < y0 + h:
-                dist_x = min(px - x0, x0 + w - px)
-                dist_y = min(py - y0, y0 + h - py)
-                return min(dist_x, dist_y)
-            return np.hypot(px - cx, py - cy)
-        
-        def total_distance(params: tuple[float, float], points: list[tuple], w: float, h: float) -> float:
-            x0, y0 = params
-            return sum(point_to_aabb_perimeter_dist(px, py, x0, y0, w, h) for px, py in points)
-            
-        centroid = points.mean(axis = 0)
-        init_x0 = centroid[0] - w / 2
-        init_y0 = centroid[1] - h / 2
-        res = minimize(total_distance, [init_x0, init_y0], args = (points, w, h))
-        best_x0, best_y0 = res.x
-        
-        return Vector(float(best_x0 / w), float(best_y0 / h))
+                
+        x_values = [x[0] for x in points]
+        y_values = [x[1] for x in points]
+        min_x = min(x_values)
+        max_x = max(x_values)
+        min_y = min(y_values)
+        max_y = max(y_values)
+        x = min(max_x - w, min_x)
+        y = max(max_y - h, min_y)
+        return x, y
     
     async def update(self):
         "Logic for the robot gameplay"
@@ -174,7 +162,7 @@ class Robot:
         points = [Vector(), Vector(), Vector(), Vector(), Vector()]
         for i, direction in enumerate(TOF_DIRECTIONS):
             rd = math.radians(direction + self.state.heading)
-            d = (self.state.tof_distances[i] + TOF_RADIUS - TOF_OFFSET) * 0.1 * 3
+            d = (self.state.tof_distances[i] + TOF_RADIUS - TOF_OFFSET) * 0.1 * S
             points[i].xy[0] = d * math.sin(-rd)
             points[i].xy[1] = d * math.cos(rd)
         
@@ -207,46 +195,43 @@ class Robot:
         pygame.draw.rect(self.screen, (210, 210, 210), (self.centre[0] - PW//2, self.centre[1] - PH//2, PW, PH), 5)
         pygame.draw.circle(self.screen, (20, 20, 20), self.centre.xy, 3 * 25, 3)
         for point in [(-39, -64.5), (39, -64.5), (-39, 64.5), (39, 64.5)]:
-            pygame.draw.circle(self.screen, (20, 20, 20), (self.centre[0] + point[0] * 3, self.centre[1] + point[1] * 3), 4)
+            pygame.draw.circle(self.screen, (20, 20, 20), (self.centre[0] + point[0] * S, self.centre[1] + point[1] * S), 4)
         y1 = self.centre[1] + PH // 2
-        x1 = self.centre[0] - 40 * 3
-        x2 = self.centre[0] + 40 * 3
-        pygame.draw.line(self.screen, (210, 210, 210), (x1, y1), (x1, y1 - 10 * 3), 3)
-        pygame.draw.line(self.screen, (210, 210, 210), (x2, y1), (x2, y1 - 10 * 3), 3)
-        pygame.draw.line(self.screen, (210, 210, 210), (x1 + 15*3, y1 - 25 * 3), (x2 - 15*3, y1 - 25 * 3), 3)
-        pygame.draw.arc(self.screen, (210, 210, 210), (x1, y1 - 25 * 3, 30 * 3, 30 * 3), PI/2, PI, 3)
-        pygame.draw.arc(self.screen, (210, 210, 210), (x2 - 30 * 3, y1 - 25 * 3, 30 * 3, 30 * 3), 0, PI/2, 3)
+        x1 = self.centre[0] - 40 * S
+        x2 = self.centre[0] + 40 * S
+        pygame.draw.line(self.screen, (210, 210, 210), (x1, y1), (x1, y1 - 10 * S), 3)
+        pygame.draw.line(self.screen, (210, 210, 210), (x2, y1), (x2, y1 - 10 * S), 3)
+        pygame.draw.line(self.screen, (210, 210, 210), (x1 + 15*3, y1 - 25 * S), (x2 - 15*3, y1 - 25 * S), 3)
+        pygame.draw.arc(self.screen, (210, 210, 210), (x1, y1 - 25 * S, 30 * S, 30 * S), PI/2, PI, 3)
+        pygame.draw.arc(self.screen, (210, 210, 210), (x2 - 30 * S, y1 - 25 * S, 30 * S, 30 * S), 0, PI/2, 3)
         y2 = self.centre[1] - PH // 2
-        pygame.draw.line(self.screen, (210, 210, 210), (x1, y2), (x1, y2 + 10 * 3), 3)
-        pygame.draw.line(self.screen, (210, 210, 210), (x2, y2), (x2, y2 + 10 * 3), 3)
-        pygame.draw.line(self.screen, (210, 210, 210), (x1 + 15*3, y2 + 25 * 3), (x2 - 15*3, y2 + 25 * 3), 3)
-        pygame.draw.arc(self.screen, (210, 210, 210), (x1, y2 - 5 * 3, 30 * 3, 30 * 3), PI, 3*PI/2, 3)
-        pygame.draw.arc(self.screen, (210, 210, 210), (x2 - 30 * 3, y2 - 5 * 3, 30 * 3, 30 * 3), 3*PI/2, 0, 3)
+        pygame.draw.line(self.screen, (210, 210, 210), (x1, y2), (x1, y2 + 10 * S), 3)
+        pygame.draw.line(self.screen, (210, 210, 210), (x2, y2), (x2, y2 + 10 * S), 3)
+        pygame.draw.line(self.screen, (210, 210, 210), (x1 + 15*3, y2 + 25 * S), (x2 - 15*3, y2 + 25 * S), 3)
+        pygame.draw.arc(self.screen, (210, 210, 210), (x1, y2 - 5 * S, 30 * S, 30 * S), PI, 3*PI/2, 3)
+        pygame.draw.arc(self.screen, (210, 210, 210), (x2 - 30 * S, y2 - 5 * S, 30 * S, 30 * S), 3*PI/2, 0, 3)
 
     async def tofTest(self):
         info = await self.update()
         
         if self.state.position is not None:
-            pos = self.state.position
-            pos.xy[0] *= FW
-            pos.xy[1] *= FH
-            print(pos)
-            draw = Vector(-FW//2 - pos[0] + self.centre[0], SH - (-FH//2 - pos[1] + self.centre[1]))
-            pos += self.centre
-            pygame.draw.circle(self.screen, (210, 210, 210), draw.int().xy, 3 * 10)
+            pos = Vector(self.state.position) * 0.1 * S
+            draw = Vector(-FW//2 - pos[0] + self.centre[0], SH - (-FH//2 - pos[1]) - self.centre[1])
+            pygame.draw.circle(self.screen, (210, 210, 210), draw.int().xy, 10 * S)
             if self.state.heading is not None:
                 rd = -math.radians(self.state.heading)
                 dp = Vector(50 * math.sin(rd), -50 * math.cos(rd))
-                pygame.draw.line(self.screen, (255, 20, 20), draw.xy, (draw + dp).xy, 3)
-                
-            pygame.draw.rect(self.screen, (0, 0, 255), (pos[0], SH - pos[1] - FH, FW, FH), 3)
+                pygame.draw.line(self.screen, (255, 20, 20), draw.xy, (draw + dp).xy, S)
+            
+            # pos += self.centre * 2 - draw
+            pygame.draw.rect(self.screen, (0, 0, 255), (pos[0] + draw[0], draw[1] - pos[1] - FH, FW, FH), S)
 
-            pygame.draw.circle(self.screen, (255, 0, 0), self.centre.xy, 3)
+            pygame.draw.circle(self.screen, (255, 0, 0), self.centre.xy, S)
             points = info["Points"]
             for point in points:
                 point.xy[1] *= -1
-                point += self.centre
-                pygame.draw.circle(self.screen, (255, 255, 255), point.xy, 3)
+                point += draw
+                pygame.draw.circle(self.screen, (255, 255, 255), point.xy, S)
             
             
         

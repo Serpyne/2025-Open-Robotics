@@ -47,7 +47,7 @@ class Vector:
     def __mul__(self, scalar: float) -> "Vector":
         return Vector(scalar * self.xy[0], scalar * self.xy[1])
     def __truediv__(self, scalar: float) -> "Vector":
-        return Vector(scalar / self.xy[0], scalar / self.xy[1])
+        return Vector(self.xy[0] / scalar, self.xy[1] / scalar)
     def int(self) -> "Vector":
         return Vector(int(self.xy[0]), int(self.xy[1]))
     def __tuple__(self) -> tuple[float, float]:
