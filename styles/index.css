@@ -499,9 +499,9 @@ input:checked + .checkbox-slider:before {
     height: 100%;
 }
 .interactive-container {
-    width: 90vw;
+    width: 71vw;
     height: 0;
-    right: 5vw;
+    right: 14.5vw;
     bottom: 0px;
     position: absolute;
     z-index: 5;

@@ -9,7 +9,7 @@ from utils.tof import TOFChain
 from threading import Thread
 from utils.interface import start_websocket, start_server
 
-TOF_ADDRESSES = [0x55]
+TOF_ADDRESSES = [0x50, 0x51, 0x52, 0x53, 0x54]
 
 motors_ = {}
 camera_ = None

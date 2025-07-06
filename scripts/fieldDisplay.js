@@ -61,14 +61,15 @@ class Robot {
         this.radius = 11;
         this.orientation = 0;
         this.viewRadius = 65;
+        this.drawnPos = [0, 0];
     }
     draw(context) {
-        let drawnPos = [(1 + this.pos[0]) * (SW / 2), (1 + this.pos[1]) * (SH / 2) ]
+        this.drawnPos = [(1 + this.pos[0]) * (SW / 2), (1 + this.pos[1]) * (SH / 2) ]
         let radius = this.radius * scale;
         let orientation = -Math.PI / 2 - (Math.PI / 180) * this.orientation
 
         context.beginPath();
-        context.arc(drawnPos[0], drawnPos[1], radius, 0, 2 * Math.PI, false);
+        context.arc(this.drawnPos[0], this.drawnPos[1], radius, 0, 2 * Math.PI, false);
         context.fillStyle = 'grey';
         context.fill();
         context.lineWidth = 2;
@@ -76,8 +77,8 @@ class Robot {
         context.stroke();
 
         context.beginPath();
-        context.moveTo(drawnPos[0], drawnPos[1])
-        context.lineTo(drawnPos[0] + this.viewRadius * Math.cos(orientation), drawnPos[1] + this.viewRadius * Math.sin(orientation));
+        context.moveTo(this.drawnPos[0], this.drawnPos[1])
+        context.lineTo(this.drawnPos[0] + this.viewRadius * Math.cos(orientation), this.drawnPos[1] + this.viewRadius * Math.sin(orientation));
         context.lineWidth = 2;
         context.strokeStyle = '#ff0000';
         context.stroke();
@@ -86,12 +87,12 @@ class Robot {
         context.fillStyle = "#fff";
         context.fillText(
             `(${Math.round((this.pos[0] + Number.EPSILON) * 1000) / 1000}, ${Math.round((this.pos[1] + Number.EPSILON) * 1000) / 1000})`, 
-            drawnPos[0] - 15, drawnPos[1] + 55
+            this.drawnPos[0] - 15, this.drawnPos[1] + 55
         );
     }
 }
 
-const refreshRate = 1.0 / 24;
+const refreshRate = 1.0 / 30;
 
 let ball = new Ball(0, 0);
 let mouse = [0, 0];
@@ -211,6 +212,35 @@ function drawField() {
     FDcontext.stroke()
 }
 
+tofPoints = [];
+function drawTOFS(robot_) {
+    FDcontext.fillStyle = "#ff0000";
+    FDcontext.beginPath();
+    FDcontext.arc(robot_.drawnPos[0], robot_.drawnPos[1], 5, 0, Math.PI * 2, false);
+    FDcontext.fill();
+    
+    FDcontext.fillStyle = "#fff";
+    for (let i in tofPoints) {
+        FDcontext.beginPath();
+        FDcontext.arc(tofPoints[i][0] * scale + robot_.drawnPos[0], tofPoints[i][1] * scale + robot_.drawnPos[1], 2, 0, Math.PI * 2, false);
+        FDcontext.fill();
+    }
+}
+function drawRect(x, y, w, h) {
+    x = (1 + x) * (SW / 2)
+    y = (1 + y) * (SH / 2)
+    w = w * 182 * scale
+    h = h * 243 * scale
+    FDcontext.strokeStyle = "#fff";
+    FDcontext.beginPath();
+    FDcontext.moveTo(x, y);
+    FDcontext.lineTo(x + w, y);
+    FDcontext.lineTo(x + w, y + h);
+    FDcontext.lineTo(x, y + h);
+    FDcontext.lineTo(x, y);
+    FDcontext.stroke();
+}
+
 const BALL = 0x54;
 const ROBOT = 0xef;
 let selectedElement = null;
@@ -222,6 +252,7 @@ function update() {
     drawField();
     ball.draw(FDcontext);
     robot.draw(FDcontext);
+    drawTOFS(robot);
 
     let squaredDist = Math.pow((ball.pos[0] - mouse[0]) * (SW / 2), 2) + Math.pow((ball.pos[1] - mouse[1]) * (SH / 2), 2);
     if (squaredDist < Math.pow(4 * ball.radius * scale, 2)) {selectedElement = BALL;}
@@ -253,7 +284,7 @@ function update() {
         setTargetPos(ball.pos[0] * 182, ball.pos[1] * 243)
     }
 
-    setTimeout("update();", refreshRate);
+    setTimeout("update();", refreshRate * 1000);
 }
 update();
 

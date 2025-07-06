@@ -36,15 +36,19 @@ class Vector:
     def __repr__(self) -> str:
         return str(self)
         
+    def __getitem__(self, i) -> float:
+        if i < 0 or i > 1: raise Exception("Vector index must be 0 or 1.")
+        return self.xy[i]
+        
     def __add__(self, other: "Vector") -> "Vector":
         return Vector(self.xy[0] + other.xy[0], self.xy[1] + other.xy[1])
     def __sub__(self, other: "Vector") -> "Vector":
         return Vector(self.xy[0] - other.xy[0], self.xy[1] - other.xy[1])
-    def __mult__(self, scalar: float) -> "Vector":
+    def __mul__(self, scalar: float) -> "Vector":
         return Vector(scalar * self.xy[0], scalar * self.xy[1])
-    def __div__(self, scalar: float) -> "Vector":
+    def __truediv__(self, scalar: float) -> "Vector":
         return Vector(scalar / self.xy[0], scalar / self.xy[1])
-    def __int__(self) -> "Vector":
+    def int(self) -> "Vector":
         return Vector(int(self.xy[0]), int(self.xy[1]))
     def __tuple__(self) -> tuple[float, float]:
         return self.xy

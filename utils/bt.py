@@ -19,7 +19,6 @@ class Selector(Node):
         self.current_child: int = 0
 
     def tick(self, blackboard):
-        print("select")
         while self.current_child < len(self.children):
             status = self.children[self.current_child].tick(blackboard)
             if status == Status.Running:

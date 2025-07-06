@@ -1,6 +1,5 @@
 """
 Brushless DC Motor Library ported to python
-Original creator: James
 """
 
 import smbus2
@@ -153,3 +152,75 @@ class Motor:
             self.bus.write_i2c_block_data(self.i2c_address, 0x32, list(data))
         except Exception as e:
             print(f"Error setting SINCOSCENTRE: {e}")
+            
+    def read(self):
+        self.bus.write_i2c_block_data(self.i2c_address, 0x10, [0x1])
+        res = self.bus.read_i2c_block_data(self.i2c_address, 0x10, 10)
+        position = int.from_bytes(bytes(res[:4]), byteorder='little', signed=True)
+        speed = int.from_bytes(bytes(res[4:8]), byteorder='little', signed=True)
+        error1 = res[8]
+        error2 = res[9]
+        return [position, speed, error1, error2]
+
+if __name__ == "__main__":
+    motors = {
+        0: Motor(address=0x19),
+        1: Motor(address=0x1a),
+        3: Motor(address=0x1c),
+        2: Motor(address=0x1b),
+        "dribbler": Motor(address=0x1e)
+    }
+    
+    async def initialise_event_loop(main_func):
+        for index in motors:
+            motor = motors[index]
+            asyncio.create_task(motor.event_loop())
+                
+        main_task = asyncio.create_task(main_func())
+        await asyncio.gather(main_task)
+
+    sequence = [x / 10 for x in range(0, 11)] + [0]
+    # sequence = [0, 1, 0, 1, 0]
+    async def main():
+        set_speed = []
+        measured_speed = []
+        times = []
+
+        t = 0
+        i = 0
+        ticks = 0
+        duration = 1
+        while i < len(sequence) - 1:
+            if t >= duration * 10:
+                t = 0
+                i += 1
+            if t == 0: 
+                print(f"setting speed {sequence[i]}")
+                motors[0].set_speed(sequence[i])
+                
+            res = motors[0].read()
+            print(res)
+            times.append(ticks)
+            set_speed.append(sequence[i])
+            measured_speed.append(res[1] / MAX_SPEED)
+            await asyncio.sleep(0.1)
+            t += 1
+            ticks += 1
+        motors[0].set_speed(0)
+        ...
+        
+        import matplotlib.pyplot as plt
+        
+        plt.figure(figsize=(8, 4))
+        plt.plot(times, measured_speed, marker='o', label='Measured Speed')
+        plt.plot(times, set_speed, linestyle='--', color='gray', label='Ideal (y=x)')
+        plt.xlabel('Set Motor Speed (RPM)')
+        plt.ylabel('Measured Motor Speed (RPM)')
+        plt.title('Motor Set Speed vs. Measured Speed')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+    
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(initialise_event_loop(main))
+    loop.run_forever()

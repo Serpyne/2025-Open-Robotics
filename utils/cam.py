@@ -196,6 +196,26 @@ class Camera:
 
         Thread(target=_event_loop, daemon=True).start()
 
+    def show_debug_screen(self):
+        def main():
+            while True:
+                if self.frame is None: continue
+                if DISPLAY:
+                    cv2.imshow("test", self.frame)
+                    cv2.waitKey(1)
+                    
+                    # if None in [self.angle, self.distance]:
+                        # print("Ball covered")
+                    # else:
+                        # print(f"Angle: {int(degrees(camera.angle))} | Distance: {int(camera.distance)}")
+        try:
+            Thread(target=main).start()
+        
+        except KeyboardInterrupt:
+            self.stop()
+            cv2.destroyAllWindows()
+            sys.exit()
+
     def stop(self):
         self.running = False
         if ON_PI:
@@ -203,25 +223,7 @@ class Camera:
         else:
             self.stream.stop()
 
-def main():
-    while True:
-        if camera.frame is None: continue
-        if DISPLAY:
-            cv2.imshow("test", camera.frame)
-            cv2.waitKey(1)
-            
-            if None in [camera.angle, camera.distance]:
-                print("Ball covered")
-            else:
-                print(f"Angle: {int(degrees(camera.angle))} | Distance: {int(camera.distance)}")
-            
 if __name__ == "__main__":
-    try:
-        camera = Camera()
-        camera.start_event_loop()
-        Thread(target=main).start()
-    
-    except KeyboardInterrupt:
-        camera.stop()
-        cv2.destroyAllWindows()
-        sys.exit()
+    camera = Camera()
+    camera.start_event_loop()
+    camera.show_debug_screen()

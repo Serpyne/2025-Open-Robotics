@@ -48,6 +48,27 @@ function appendToConsole(text) {
     if (autoscrollCheckbox.checked) {
         consoleOutput.scrollTop = consoleOutput.scrollHeight;
     }
+    
+    let cmd = text.split(" ")[0];
+    if (cmd == "DrawPoints") {
+        text = text.substring(11, text.length);
+        let s = text.substring(1, text.length - 1);
+        let points = s.split("] [");
+        for (let i in points) {
+            points[i] = points[i].split(", ");
+            points[i] = [parseInt(points[i][0]), parseInt(points[i][1])]
+        }
+        tofPoints = points;
+    }
+    else if (cmd == "DrawRect") {
+        s = text.substring(9, text.length);
+        let c = s.split(" ");
+        x = parseInt(c[0]);
+        y = parseInt(c[1]);
+        w = parseInt(c[2]);
+        h = parseInt(c[3]);
+        drawRect(x,y,w,h);
+    }
 }
 
 const fileList = document.getElementById('fileList');

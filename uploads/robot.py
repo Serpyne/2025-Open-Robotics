@@ -38,8 +38,8 @@ class Utilities:
 class Robot:
     def __init__(self, motors, camera, compass, tofs):
         
-        self._switch_left:  Button = Button(17, pull_up=True)
-        self._switch_right: Button = Button(4, pull_up=True)
+        # self._switch_left:  Button = Button(17, pull_up=True)
+        # self._switch_right: Button = Button(4, pull_up=True)
         self.mode: int = Mode.Idle
         
         self.state: RobotState = RobotState()
@@ -103,6 +103,11 @@ class Robot:
     async def update(self):
         "Logic for the robot gameplay"
         
+        if None in [self.utils.camera.angle, self.utils.camera.distance]:
+            await asyncio.sleep(0.1)
+            await self.brake()
+            return
+        
         self.state.ball_angle = (270 - math.degrees(self.utils.camera.angle)) % 360 - 180
         self.state.ball_distance = self.utils.camera.distance
         self.state.heading = (self.utils.compass.read() - self.state.initial_heading + 180) % 360 - 180
@@ -111,6 +116,8 @@ class Robot:
         tof_distances: list[float] = self.utils.tofs.read()
         
         ...
+        a = self.calculate_final_direction(self.state.ball_angle, self.state.ball_distance)
+        await self.drive_in_direction(a, 0.2)
 
         # print for debugging
         info = {
@@ -118,7 +125,7 @@ class Robot:
             "Ball Distance": self.state.ball_distance,
             "Heading": self.state.heading,
             "Initial Heading": self.state.initial_heading,
-            "TOF Distances": tof_distances
+            # "TOF Distances": tof_distances
         }
         max_header = max([len(x) for x in info])
         for header in info:
@@ -145,20 +152,23 @@ class Robot:
         await self.brake()
         await self.stop_dribbler()
         self.utils.camera.start_event_loop()
+        self.utils.camera.show_debug_screen()
         
         while True:
             
-            if self._switch_left.is_pressed:
-                self.state = Mode.Calibrate
-                await self.calibrate()
+            # if self._switch_left.is_pressed:
+            #     self.state = Mode.Calibrate
+            #     await self.calibrate()
                 
-            elif self._switch_right.is_pressed:
-                self.state = Mode.Update
-                await self.update()
+            # elif self._switch_right.is_pressed:
+            #     self.state = Mode.Update
+            #     await self.update()
                 
-            else:
-                self.state = Mode.Idle
-                await self.idle()
+            # else:
+            #     self.state = Mode.Idle
+            #     await self.idle()
+                
+            await self.update()
                 
             await asyncio.sleep(self.update_interval)
 

@@ -6,6 +6,9 @@ class TOF:
         self.address: int = address
         self.parent: None | TOFChain = parent
         
+        self.true_distance = 0
+        self.distance = 0
+        
         if self.parent is None:
             self.bus = SMBus(1)
         else:
@@ -15,8 +18,12 @@ class TOF:
         data = self.bus.read_i2c_block_data(self.address, 0x10, 5)
         
         sequence = data[0]
-        distance = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24)
-        return distance
+        self.true_distance = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24)
+        if self.distance == 0:
+            self.distance = self.true_distance
+        else:
+            self.distance += (self.true_distance - self.distance) * 0.4
+        return self.distance
             
 class TOFChain:
     def __init__(self, addresses: list[int], bus_num: int = 1):

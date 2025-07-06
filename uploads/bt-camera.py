@@ -11,19 +11,31 @@ from utils.bt import BehaviourTree
 from main import mainloop
 
 angle = distance = None
-orientation = 0
+orientation = -135
 position = [0, 0]
-oppGoalDirection = 45
+oppGoalDirection = 0
 
+def priority(bb):
+    if checkIfBallIsNotVisible(bb):
+        driveToGoal(bb)
+        return True
+    return False
+        
 def normaliseAngle(x: float):
     return (x + 180) % 360 - 180
 
 def checkIfBallIsNotVisible(bb):
     if None in [angle, distance]:
+        print("Ball covered")
         return True
+    print("Ball visible")
     return False
 def checkIfBallIsVisible(bb):
-    return not checkIfBallIsNotVisible(bb)
+    if None in [angle, distance]:
+        print("Ball visible")
+        return False
+    print("Ball covered")
+    return True
 def driveToGoal(bb):
     print("Driving to goal")
     bb.clear()
@@ -38,9 +50,11 @@ def predictBallPath(bb):
     print("Predicting ball path")
     return True
 def driveToBall(bb):
+    if priority(bb): return False
     print("driving to ball")
     return True
 def collectBall(bb):
+    if priority(bb): return False
     driveToBall(bb)
     if checkIfBallIsNotVisible(bb):
         return False
@@ -69,6 +83,7 @@ def saveTargetPosToBlackboard(bb):
     return True
 TURN_THRESHOLD = 5.0
 def turnToFaceDirection(bb):
+    if priority(bb): return False
     if "turnDirection" not in bb:
         return False
     if abs(normaliseAngle(orientation - bb["turnDirection"])) > TURN_THRESHOLD:
@@ -78,6 +93,7 @@ def turnToFaceDirection(bb):
     return True
 TARGET_THRESHOLD = 50 # radial distance in mm ; also need to change to be mm or normalised idk
 def driveToTargetPos(bb):
+    if priority(bb): return False
     if "targetPos" not in bb:
         return False
     x, y = bb["targetPos"]
@@ -87,8 +103,9 @@ def driveToTargetPos(bb):
     print("at target pos")
     return True
 def turnToFaceGoal(bb):
+    if priority(bb): return False
     # CHANGE THIS PLSS
-    if abs(normaliseAngle(orientation - goalDirection)) > TURN_THRESHOLD:
+    if abs(normaliseAngle(oppGoalDirection)) > TURN_THRESHOLD:
         print("not facing goal")
         return False
     print("facing goal")
@@ -106,16 +123,17 @@ async def main(camera):
     bt = BehaviourTree(tree_string, globals())
     
     camera.start_event_loop()
+    camera.show_debug_screen()
     
     while True:
         angle = camera.angle
         if angle is not None: angle = 90 - math.degrees(angle)
         distance = camera.distance
         
-        print(angle, distance, "\n")
         bt.tick()
+        print(angle, distance, "\n")
         print(bt.blackboard)
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(1)
         
 if __name__ == "__main__":
     mainloop(main, motors=False, camera=True)
