@@ -30,8 +30,10 @@ import numpy as np
 from time import perf_counter
 
 
-PW, PH = 158 * 3, 219 * 3
-FW, FH = 182 * 3, 243 * 3
+PW, PH = 100 * 3, 145 * 3
+FW, FH = 115 * 3, 159 * 3
+# PW, PH = 158 * 3, 219 * 3
+# FW, FH = 182 * 3, 243 * 3
 SW, SH = FW + 400, FH + 400
 PI = math.pi
 
@@ -130,10 +132,13 @@ class Robot:
         for i, distance in enumerate(self.state.tof_distances):
             a = math.radians(TOF_DIRECTIONS[i] + self.state.heading)
             d = distance + TOF_RADIUS - TOF_OFFSET
-            points.append([d * math.sin(a), d * math.cos(a)])
+            point = [d * math.sin(-a), d * math.cos(a)]
+            pygame.draw.circle(self.screen, (255, 255, 0), (point[0] / 10 + self.centre[0], SH - (point[1] / 10 + self.centre[1])), 3)
+            points.append(point)
         points = np.array(points)
     
-        w, h = 1820, 2430
+        w, h = 1150, 1590
+        # w, h = 1820, 2430
         
         def point_to_aabb_perimeter_dist(px: float, py: float, x0: float, y0: float, w: float, h: float) -> float:
             cx = np.clip(px, x0, x0 + w)
@@ -225,7 +230,8 @@ class Robot:
             pos = self.state.position
             pos.xy[0] *= FW
             pos.xy[1] *= FH
-            draw = Vector(-FW//2 - pos[0] + self.centre[0], -FH//2 - pos[1] + self.centre[1])
+            print(pos)
+            draw = Vector(-FW//2 - pos[0] + self.centre[0], SH - (-FH//2 - pos[1] + self.centre[1]))
             pos += self.centre
             pygame.draw.circle(self.screen, (210, 210, 210), draw.int().xy, 3 * 10)
             if self.state.heading is not None:
@@ -233,12 +239,13 @@ class Robot:
                 dp = Vector(50 * math.sin(rd), -50 * math.cos(rd))
                 pygame.draw.line(self.screen, (255, 20, 20), draw.xy, (draw + dp).xy, 3)
                 
-            pygame.draw.rect(self.screen, (0, 0, 255), (pos[0], pos[1] - FH, FW, FH), 3)
+            pygame.draw.rect(self.screen, (0, 0, 255), (pos[0], SH - pos[1] - FH, FW, FH), 3)
 
+            pygame.draw.circle(self.screen, (255, 0, 0), self.centre.xy, 3)
             points = info["Points"]
             for point in points:
                 point.xy[1] *= -1
-                point += draw
+                point += self.centre
                 pygame.draw.circle(self.screen, (255, 255, 255), point.xy, 3)
             
             
