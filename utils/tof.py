@@ -1,4 +1,5 @@
 import time 
+import numpy as np
 from smbus2 import SMBus, i2c_msg
 
 class TOF:
@@ -8,15 +9,15 @@ class TOF:
         
         self.true_distance = 0
         self.distance = 0
-        self.n = 15
-        self.past_distances = [0] * self.n
+        self.n = 10
+        self.past_distances = []
         
         if self.parent is None:
             self.bus = SMBus(1)
         else:
             self.bus = self.parent.bus
                 
-    def read(self) -> float:
+    def read(self, reading_threshold = 500) -> float:
         data = self.bus.read_i2c_block_data(self.address, 0x10, 5)
         
         sequence = data[0]
@@ -24,10 +25,15 @@ class TOF:
         if self.distance == 0:
             self.distance = self.true_distance
         else:
-            self.distance += (self.true_distance - self.distance) * 0.06
-        self.past_distances.pop(0)
+            median = np.median(self.past_distances)
+            print(median)
+            if abs(self.true_distance - median) > reading_threshold:
+                return np.median(self.past_distances)
+            self.distance += (self.true_distance - self.distance) * 0.1
         self.past_distances.append(self.distance)
-        return sum(self.past_distances) / self.n
+        if len(self.past_distances) > self.n:
+            self.past_distances.pop(0)
+        return np.median(self.past_distances)
             
 class TOFChain:
     def __init__(self, addresses: list[int], bus_num: int = 1):
@@ -40,6 +46,7 @@ class TOFChain:
         return len(self.tofs)
     def read(self) -> list[float]:
         "returns millimetres"
+        # [tof.read() for tof in self.tofs]
         return [tof.read() for tof in self.tofs]
 
 if __name__ == "__main__":

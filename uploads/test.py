@@ -73,7 +73,7 @@ class Robot:
         self.state: RobotState = RobotState()
         self.utils: Utilities = Utilities(motors, camera, compass, tofs)
 
-        self.update_interval: float = 0.05
+        self.update_interval: float = 0.005
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
         
@@ -94,6 +94,12 @@ class Robot:
             scaled_angle *= -1
             
         return scaled_angle
+
+    async def turn(self, speed):
+        self.utils.motors[0].set_speed(speed)
+        self.utils.motors[1].set_speed(speed)
+        self.utils.motors[2].set_speed(speed)
+        self.utils.motors[3].set_speed(speed)
 
     async def drive_in_direction(self, angle: float, speed: float):
         # might need to check if ts works for the motor angle setup
@@ -232,8 +238,9 @@ class Robot:
                 point.xy[1] *= -1
                 point += draw
                 pygame.draw.circle(self.screen, (255, 255, 255), point.xy, S)
-            
-            
+        
+        
+            await self.turn(0.01)
         
     async def start(self):
         
@@ -263,16 +270,22 @@ class Robot:
             pygame.display.flip()
 
 
-async def main(compass, tofs):
+async def main(motors, compass, tofs):
     global ts
-    ts = Robot(None, None, compass, tofs)
+    ts = Robot(motors, None, compass, tofs)
     await ts.start()
     
 TOF_ADDRESSES = [0x50, 0x51, 0x52, 0x53, 0x54]
-async def initialise_event_loop(main_func, motors=False, camera=False, compass=True, tofs=True):
+async def initialise_event_loop(main_func, motors=True, camera=False, compass=True, tofs=True):
     args = []
-    motors_ = {}
     if motors:
+        motors_ = {
+            0: Motor(address=0x19),
+            1: Motor(address=0x1a),
+            3: Motor(address=0x1c),
+            2: Motor(address=0x1b),
+            "dribbler": Motor(address=0x1e)
+        }
         for index in motors_:
             motor = motors_[index]
             asyncio.create_task(motor.event_loop())
