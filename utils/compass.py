@@ -2,6 +2,7 @@ import numpy as np
 import board
 from adafruit_bno08x.i2c import BNO08X_I2C
 from adafruit_bno08x import BNO_REPORT_ROTATION_VECTOR
+import time
 
 class Compass:
     def __init__(self):

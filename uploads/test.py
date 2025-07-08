@@ -26,15 +26,16 @@ from pygame.locals import *
 from threading import Thread
 import numpy as np
 
-from time import perf_counter
+from time import perf_counter, sleep as time_sleep
+import functools
 
-S = 5
+S = 4
 
 PW, PH = 100 * S, 145 * S
 FW, FH = 115 * S, 159 * S
 # PW, PH = 158 * S, 219 * S
 # FW, FH = 182 * S, 243 * S
-SW, SH = FW + 400, FH + 400
+SW, SH = FW + 1000, FH + 400
 PI = math.pi
 
 TOF_OFFSET = 18
@@ -42,6 +43,15 @@ TOF_RADIUS = 100
 TOF_DIRECTIONS = [60, 120, 180, 240, 300]
 
 
+def catch_error(func):
+    @functools.wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        try:
+            return await func(self, *args, **kwargs)
+        except Exception as e:
+            print(f"Exception caught in {func.__name__}: {e}")
+            return None
+    return wrapper
 
 def normaliseAngle(x: float) -> float:
     return (x + 180) % 360 - 180
@@ -59,6 +69,8 @@ class RobotState:
     heading: float = 0
     initial_heading: float = 0
     tof_distances: list[float] = []
+    target_pos: Vector = Vector()
+    running: bool = True
 class Utilities:
     def __init__(self, motors=None, camera=None, compass=None, tofs=None):
         self.motors = motors
@@ -74,6 +86,7 @@ class Robot:
         self.utils: Utilities = Utilities(motors, camera, compass, tofs)
 
         self.update_interval: float = 0.005
+        self.ticks: int = 0
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
         
@@ -155,6 +168,7 @@ class Robot:
         y = max(max_y - h, min_y)
         return x, y
     
+    @catch_error
     async def update(self):
         "Logic for the robot gameplay"
         
@@ -187,17 +201,20 @@ class Robot:
         
         return info
 
+    @catch_error
     async def idle(self):
         "Robot is not moving or sensing"
         await asyncio.sleep(0.5 - self.update_interval)
         
+    @catch_error
     async def calibrate(self):
         "Set initial heading"
         self.state.initial_heading = self.utils.compass.read()
         await asyncio.sleep(0.5 - self.update_interval)
 
-    def drawField(self):
-        pygame.draw.rect(self.screen, (100, 200, 100), (200, 200, FW, FH))
+    @catch_error
+    async def drawField(self):
+        pygame.draw.rect(self.screen, (100, 200, 100), ((SW - FW)//2, (SH - FH)//2, FW, FH))
         pygame.draw.rect(self.screen, (210, 210, 210), (self.centre[0] - PW//2, self.centre[1] - PH//2, PW, PH), 5)
         pygame.draw.circle(self.screen, (20, 20, 20), self.centre.xy, 3 * 25, 3)
         for point in [(-39, -64.5), (39, -64.5), (-39, 64.5), (39, 64.5)]:
@@ -217,6 +234,7 @@ class Robot:
         pygame.draw.arc(self.screen, (210, 210, 210), (x1, y2 - 5 * S, 30 * S, 30 * S), PI, 3*PI/2, 3)
         pygame.draw.arc(self.screen, (210, 210, 210), (x2 - 30 * S, y2 - 5 * S, 30 * S, 30 * S), 3*PI/2, 0, 3)
 
+    @catch_error
     async def tofTest(self):
         info = await self.update()
         
@@ -239,9 +257,11 @@ class Robot:
                 point += draw
                 pygame.draw.circle(self.screen, (255, 255, 255), point.xy, S)
         
+        self.ticks += 1
         
-            await self.turn(0.01)
+        print(self.state.position)
         
+    # @catch_error
     async def start(self):
         
         self.screen = pygame.display.set_mode((SW, SH))
@@ -252,7 +272,9 @@ class Robot:
         
         self.centre = Vector(SW // 2, SH // 2).int()
         
-        while True:            
+        while True:
+            if not self.state.running: break
+                    
             await asyncio.sleep(self.update_interval)
 
             for event in pygame.event.get():
@@ -261,7 +283,7 @@ class Robot:
                     sys.exit()
             
             self.screen.fill("#131313")
-            self.drawField()
+            await self.drawField()
             
             await self.tofTest()
             
@@ -270,6 +292,7 @@ class Robot:
             pygame.display.flip()
 
 
+ts = None
 async def main(motors, compass, tofs):
     global ts
     ts = Robot(motors, None, compass, tofs)
@@ -301,7 +324,12 @@ async def initialise_event_loop(main_func, motors=True, camera=False, compass=Tr
     await asyncio.gather(main_task)
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(initialise_event_loop(main))
-    loop.run_forever()
-    
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(initialise_event_loop(main))
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print("Program ended")
+        time_sleep(0.1)
+        loop.run_until_complete(ts.brake())
+        

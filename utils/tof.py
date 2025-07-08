@@ -9,7 +9,7 @@ class TOF:
         
         self.true_distance = 0
         self.distance = 0
-        self.n = 10
+        self.n = 15
         self.past_distances = []
         
         if self.parent is None:
@@ -29,7 +29,7 @@ class TOF:
             print(median)
             if abs(self.true_distance - median) > reading_threshold:
                 return np.median(self.past_distances)
-            self.distance += (self.true_distance - self.distance) * 0.1
+            self.distance += (self.true_distance - self.distance) * 0.2
         self.past_distances.append(self.distance)
         if len(self.past_distances) > self.n:
             self.past_distances.pop(0)
