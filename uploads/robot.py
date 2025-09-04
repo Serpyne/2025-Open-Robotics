@@ -7,7 +7,8 @@ Main TS robot code; I plan to use this file in competitions.
 import sys
 import os
 
-parent_dir = "\\".join(os.path.dirname(__file__).split("\\")[:-1])
+file_path = os.path.dirname(__file__)
+parent_dir = "\\".join(file_path.split("\\")[:-1])
 sys.path.append(parent_dir)
 
 from main import mainloop
@@ -15,6 +16,7 @@ from gpiozero import Button
 from vector import Vector
 import math
 import asyncio
+import json
 
 
 
@@ -24,7 +26,10 @@ def lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * clamp(t, 0, 1)
 def normalise(a: float) -> float:
     return (a + 180) % 360 - 180
-    
+
+class Goal:
+    Yellow = 0xea
+    Blue = 0x89
 class Mode:
     Update = 0x12
     Idle = 0xae
@@ -37,68 +42,78 @@ class RobotState:
     heading: float = 0
     initial_heading: float = None
     last_seen_ball: int = 0
+    has_ball: int = 0
+    blind_milliseconds: int = 500
+    target_goal: int = Goal.Yellow
+    top_speed: float = 0.8
+    dribble_speed: float = 0.5
 class Utilities:
     def __init__(self, motors=None, camera=None, compass=None, tofs=None):
         self.motors = motors
         self.camera = camera
         self.compass = compass
         self.tofs = tofs
+        self.switch_left: Button = None
+        self.switch_right: Button = None
 class Robot:
     def __init__(self, motors, camera, compass, tofs):
         
-        # self._switch_left:  Button = Button(17, pull_up=True)
-        # self._switch_right: Button = Button(4, pull_up=True)
         self.mode: int = Mode.Idle
         
         self.future_motor_speeds: list[float] = [0, 0, 0, 0]
         
         self.state: RobotState = RobotState()
+        with open(os.path.join(file_path, "config.json"), "r") as f:
+            self.config = json.load(f)
+            f.close()
+            
+        self.state.blind_milliseconds = self.config["blindnessTimer"]
+        self.state.top_speed = self.config["topSpeed"]
+        self.state.target_goal = Goal.Blue if self.config["targetGoal"] == "blue" else Goal.Yellow
+        
+        self.speedBias = self.config["speedBias"]
+        self.angleCoeff = self.config["anglePolyCoefficients"]
+            
         self.utils: Utilities = Utilities(motors, camera, compass, tofs)
-
+        self.utils.switch_left = Button(self.config["addresses"]["switchLeft"], pull_up=True)
+        self.utils.switch_right = Button(self.config["addresses"]["switchRight"], pull_up=True)
+        
+        self.utils.camera.set_masks(self.config["cameraMasks"])
         self.update_interval: float = 1 / 60
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
         """DISTANCE IS IN CM"""
         
-        x5 = -2.124 * pow(10,-8)
-        x4 = 8.243 * pow(10,-6)
-        x3 = -0.0009267
-        x2 = 0.01556
-        x1 = 3.204
         def angle_poly(x: float) -> float:
-            return (x5 * pow(x, 5)) + (x4 * pow(x, 4)) + (x3 * pow(x, 3)) +(x2 * pow(x, 2)) + (x1 * x)
+            return (self.angleCoeff["x5"] * pow(x, 5)) + (self.angleCoeff["x4"] * pow(x, 4)) + (self.angleCoeff["x3"] * pow(x, 3)) + (self.angleCoeff["x2"] * pow(x, 2)) + (self.angleCoeff["x1"] * x)
 
         def f(x, a = 2.5, D = 21.0) -> float:
-            # When the ball (x) is D cm away, drive to the mapped angle.
-            # Further away will be more towards the direct angle
-            # 'a' is dilation
-            return 1#1 / (1 + math.exp(-4 + (1 / a) * (x - D)))
+            return 1 / (1 + math.exp(-4 + (1 / a) * (x - D)))
             
         angle = normalise(angle)
         is_negative: bool = angle < 0
         
         mapped_angle: float = angle_poly(angle) if angle > 0 else -angle_poly(abs(angle))
 
-        return lerp(angle, mapped_angle, f(distance))
+        final_angle = angle + normalise(mapped_angle - angle) * f(distance)
+        return normalise(final_angle)
 
     async def drive_in_direction(self, angle: float, speed: float, contribution: float = 1.0):
-        # might need to check if ts works for the motor angle setup
-        angle *= -1
-        FL = math.sin(math.radians(35 + angle))
-        FR = math.sin(math.radians(35 - angle))
+        FL = math.sin(math.radians(35 - angle))
+        FR = math.sin(math.radians(35 + angle))
 
         if abs(FL) >= abs(FR):
-            FR = (speed/abs(FL))*FR
-            FL = (speed/FL)*abs(FL)
+            FR = (speed / abs(FL)) * FR
+            FL = (speed / FL) * abs(FL)
         elif abs(FL) < abs(FR):
-            FL = (speed/abs(FR))*FL
-            FR = (speed/FR)*abs(FR)
+            FL = (speed / abs(FR)) * FL
+            FR = (speed / FR) * abs(FR)
             
         self.future_motor_speeds[0] += FL * contribution
         self.future_motor_speeds[1] += FR * contribution
         self.future_motor_speeds[2] += -FL * contribution
         self.future_motor_speeds[3] += -FR * contribution
-    async def turn(self, speed: float, contribution: float = 0.1):
+    async def turn(self, speed: float, contribution: float = 1.0):
         for i in range(4):
             self.future_motor_speeds[i] += clamp(speed * contribution, -1, 1)
     async def brake(self):
@@ -123,55 +138,75 @@ class Robot:
         ...
         return
     
-    def drive_direction_bias(self, a: float, bias=10_000_000) -> float:
+    def drive_direction_bias(self, a: float) -> float:
         # Drives more forward when its forward
         a = normalise(a)
-        return a - a / ((1 / bias) * pow(a, 4) + 1)
-    def drive_speed_bias(self, a: float, forward_damping: float = 0.1, side_damping=0.3) -> float:
+        return a - a / ((1 / self.config["directionBias"]) * pow(a, 4) + 1)
+        
+    def drive_speed_bias(self, a: float) -> float:
         # Drives at 100% sideways and drives 100% on the sides.
-        f = 1 - 0.5 * side_damping * (1 - math.cos(math.radians(2 * a)))
-        return clamp(1 - forward_damping / (1 + pow(0.0167 * f, 4)), -1, 1)
+        f = 1 - 0.5 * self.speedBias["sideDamping"] * (1 - math.cos(math.radians(2 * a)))
+        # Composite function to make it so that the forward peak is
+        # less than the backwards peaks, and the sides are independent
+        g = 1 - self.speedBias["forwardDamping"] / (1 + pow(0.0167 * f, 4)
+        # Lerp between the target speed and 100% depending on distance
+        return lerp(g, 1, 1 / (1 + math.exp(15 - 0.5*a)))
     
     async def update(self):
         "Logic for the robot gameplay"
+        
+        update_duration = self.update_interval * 1000
         
         if None in [self.utils.camera.angle, self.utils.camera.distance]:
             await asyncio.sleep(0.1)
             if self.state.last_seen_ball <= 0:
                 await self.brake()
+                # await self.turn(0.1)
+                # await self.confirm_drive()
                 return
-            self.state.last_seen_ball -= 1
+            self.state.last_seen_ball -= 100 + update_duration
+            self.state.last_seen_ball = max(0, self.state.last_seen_ball) # Milliseconds
         else:
-            self.state.last_seen_ball = 5 # times 100 milliseconds
+            self.state.last_seen_ball = self.state.blind_milliseconds
             
             self.state.ball_angle = (180 - math.degrees(self.utils.camera.angle)) % 360
             self.state.ball_distance = self.utils.camera.distance
         if self.state.initial_heading is None:
             self.state.initial_heading = self.utils.compass.read()
         self.state.heading = normalise(self.utils.compass.read() - self.state.initial_heading)
-        self.state.position = self.determine_position() 
-        self.state.velocity
-        #tof_distances: list[float] = self.utils.tofs.read()
+        # self.state.position = self.determine_position() 
+        # self.state.velocity
+        # tof_distances: list[float] = self.utils.tofs.read()
         
-        ...
         
-        # BALL FOLLOW
-        await self.turn(-self.state.heading / 67, contribution=0.4)
-    
         normalised_ball_angle = normalise(self.state.ball_angle)
+        #if self.state.tofs[0] < 5 or abs(normalised_ball_angle) < 50 and self.state.ball_distance < 21.0:
+        if abs(normalised_ball_angle) < 50 and self.state.ball_distance < 21.0:
+            self.state.has_ball = 500
+        else:
+            self.state.has_ball = max(0, self.state.has_ball - update_duration)
+        
+        
+        if self.state.has_ball:
+            await self.turn(self.utils.cam_angle, contribution=0.67)
+            await self.drive_in_direction(0, self.state.dribble_speed, contribution = 1.0)
+            await self.confirm_drive()
+            return
+        else:
+            await self.turn(-self.state.heading / 67, contribution=0.4)
+        
         direction = self.calculate_final_direction(normalised_ball_angle, self.state.ball_distance)
         direction = self.drive_direction_bias(direction)
-        speed = self.drive_speed_bias(direction, forward_damping = 0.2, side_damping = 0.3) * 0.8
+        speed = self.drive_speed_bias(direction) * self.state.top_speed
         
         await self.drive_in_direction(direction, speed, contribution = 1.0)
         await self.confirm_drive()
-        
-        
-        
-        
-        # await self.enable_dribbler()
-        
 
+
+
+        return
+        
+        
         # print for debugging
         info = {
             "Ball Angle": self.state.ball_angle,
@@ -205,15 +240,15 @@ class Robot:
         await self.brake()
         await self.stop_dribbler()
         self.utils.camera.start_event_loop()
-        self.utils.camera.show_debug_screen()
+        # self.utils.camera.show_debug_screen()
         
         while True:
             
-            # if self._switch_left.is_pressed:
+            # if self.state.switch_left.is_pressed:
             #     self.state = Mode.Calibrate
             #     await self.calibrate()
                 
-            # elif self._switch_right.is_pressed:
+            # elif self.state.switch_right.is_pressed:
             #     self.state = Mode.Update
             #     await self.update()
                 
@@ -232,4 +267,10 @@ async def main(motors, camera, compass):
     await ts.start()
     
 if __name__ == "__main__":
-    mainloop(main, motors=True, camera=True, screen=False, compass=True, tofs=False)
+    with open(os.path.join(file_path, "config.json"), "r") as f:
+        config = json.load(f)
+        f.close()
+        
+    mainloop(main, motors=True, motor_addresses=config["addresses"]["motors"], dribbler_address=config["addresses"]["dribbler"]
+            camera=True, screen=False, compass=True,
+            tofs=False, tof_addresses=config["addresses"]["tofs"])

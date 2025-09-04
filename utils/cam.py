@@ -41,7 +41,7 @@ def lerp(a, b, step=0.1):
     return a + (b - a) * step
 
 class Camera:
-    def __init__(self):
+    def __init__(self, masks):
         if ON_PI:
             self.stream = Picamera2(0)
             raw_config = self.stream.sensor_modes[0]
@@ -64,9 +64,16 @@ class Camera:
 
         self.pos = None
         self.radius = None
+        
+        self.ball_lower = (175, 0, 0)
+        self.ball_upper = (255, 90, 35)
+        self.yellow_lower = [176, 164, 0]
+        self.yellow_upper = [255, 255, 36]
+        self.blue_lower = [0, 23, 176]
+        self.blue_upper = [36, 47, 255]
+        
         self.yellow_goal_mask = None
         self.blue_goal_mask = None
-
         self.yellow_center = None
         self.blue_center = None
         self.yellow_angle = None
@@ -85,14 +92,7 @@ class Camera:
 
         self.center = [320, 240]
         
-        self.body_masks = [
-            #Circle((318, 250), 123, (0, 255, 0)),
-            Sector((318, 250), 123, -(180-40), 180-40, (0, 255, 0)),
-            Rect(300, 355, 40, 32, (0, 255, 0)),
-            Rect(318-85, 250-70
-            , 85, 140, (0, 255, 0))
-            #Rect(435, 210, 24, 90, (0, 255, 0))
-        ]
+        self.body_masks: list = []
 
         self.running = False
 
@@ -101,6 +101,16 @@ class Camera:
             return self.stream.capture_array()
         return self.stream.read()
 
+    def set_masks(self, masks: list):
+        "{type, args*}"
+        self.body_masks.clear()
+        for mask in masks:
+            if mask["type"] == "circle":
+                self.body_masks.append(Circle(mask["center"], mask["radius"], mask["colour"]))
+            elif mask["type"] == "rect":
+                self.body_masks.append(Rect(mask["x"], mask["y"], mask["w"], mask["h"], mask["colour"])
+            elif mask["type"] == "sector":
+                self.body_masks.append(Circle(mask["center"], mask["radius"], mask["startAngle"], mask["endAngle"], mask["colour"]))
     def draw_body_masks(self, frame, filled=True):
         _fill = 1
         if filled: _fill = -1
@@ -116,12 +126,9 @@ class Camera:
 
     def get_mask(self, frame) -> cv2.typing.MatLike:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
         self.draw_body_masks(rgb)
-
-        ball_lower = (175, 0, 0)
-        ball_upper = (255, 90, 35)
-        mask = cv2.inRange(rgb, ball_lower, ball_upper)
+        
+        mask = cv2.inRange(rgb, self.ball_lower, self.ball_upper)
 
         return mask
     

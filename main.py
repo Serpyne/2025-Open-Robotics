@@ -9,8 +9,6 @@ from utils.tof import TOFChain
 from threading import Thread
 from utils.interface import start_websocket, start_server
 
-TOF_ADDRESSES = [0x50, 0x51, 0x52, 0x53, 0x54]
-
 motors_ = {}
 camera_ = None
 screen_ = None
@@ -41,16 +39,18 @@ def stop_motors():
         motor = motors_[index]
         motor.set_speed(0)
 
-def mainloop(main_func, loop_forever=True, motors=True, camera=False, screen=False, compass=False, tofs=False):
+def mainloop(main_func, loop_forever=True, motors=True, motor_addresses=[0x19, 0x1a, 0x1c, 0x1b], dribbler_address=0x1e,
+            camera=False, screen=False, compass=False,
+            tofs=False, tof_addresses=[0x50, 0x51, 0x52, 0x53, 0x54]):
     global motors_, camera_, screen_, compass_, tofchain_
 
     if motors:
         motors_ = {
-            0: Motor(address=0x19),
-            1: Motor(address=0x1a),
-            3: Motor(address=0x1c),
-            2: Motor(address=0x1b),
-            "dribbler": Motor(address=0x1e)
+            0: Motor(address=motor_addresses[0]),
+            1: Motor(address=motor_addresses[1]),
+            3: Motor(address=motor_addresses[2]),
+            2: Motor(address=motor_addresses[3]),
+            "dribbler": Motor(address=dribbler_address)
         }
     if camera:
         camera_ = Camera()
@@ -59,7 +59,7 @@ def mainloop(main_func, loop_forever=True, motors=True, camera=False, screen=Fal
     if compass:
         compass_ = Compass()
     if tofs:
-        tofchain_ = TOFChain(TOF_ADDRESSES)
+        tofchain_ = TOFChain(tof_addresses)
 
     try:
         loop = asyncio.get_event_loop()
