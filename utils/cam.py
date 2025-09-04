@@ -10,12 +10,9 @@ sys.path.append(os.path.dirname(__file__))
 from classes import Vector
 from time import perf_counter as pc
 
-try:
-    from picamera2 import Picamera2
-    ON_PI = True
-except:
-    from imutils.video import VideoStream
-    ON_PI = False
+from picamera2 import Picamera2
+ON_PI = True
+print(ON_PI)
 
 # size = [200, 150]
 size = [640, 480]
@@ -26,6 +23,18 @@ class Circle:
     def __init__(self, center, radius, colour):
         self.center = center
         self.radius = radius
+        self.colour = colour
+class Rect:
+    def __init__(self, x, y, w, h, colour):
+        self.x, self.y = x, y
+        self.w, self.h = w, h
+        self.colour = colour
+class Sector:
+    def __init__(self, center, radius, start_angle, end_angle, colour):
+        self.center = center
+        self.radius = radius
+        self.start_angle = start_angle
+        self.end_angle = end_angle
         self.colour = colour
 
 def lerp(a, b, step=0.1):
@@ -45,7 +54,7 @@ class Camera:
                 controls={"FrameRate": raw_config["fps"]},
             )
             self.stream.configure(config)
-            self.stream.controls.ExposureTime = 9000
+            self.stream.controls.ExposureTime = 8410
             self.stream.controls.Saturation = 3
         else:
             self.stream = VideoStream()
@@ -77,7 +86,12 @@ class Camera:
         self.center = [320, 240]
         
         self.body_masks = [
-            Circle((320, 240), 110, (0,255,0))
+            #Circle((318, 250), 123, (0, 255, 0)),
+            Sector((318, 250), 123, -(180-40), 180-40, (0, 255, 0)),
+            Rect(300, 355, 40, 32, (0, 255, 0)),
+            Rect(318-85, 250-70
+            , 85, 140, (0, 255, 0))
+            #Rect(435, 210, 24, 90, (0, 255, 0))
         ]
 
         self.running = False
@@ -94,6 +108,11 @@ class Camera:
         for bmask in self.body_masks:
             if type(bmask) == Circle:
                 cv2.circle(frame, bmask.center, bmask.radius, bmask.colour, _fill)
+            elif type(bmask) == Rect:
+                cv2.rectangle(frame, (bmask.x, bmask.y), (bmask.x + bmask.w, bmask.y + bmask.h), bmask.colour, _fill)
+            elif type(bmask) == Sector:
+                cv2.ellipse(frame, bmask.center, (bmask.radius, bmask.radius),
+                0, bmask.start_angle, bmask.end_angle, bmask.colour, _fill)
 
     def get_mask(self, frame) -> cv2.typing.MatLike:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -165,7 +184,8 @@ class Camera:
         
         if self.angle is None: self.angle = 0
         if self.distance is None: self.distance = 0
-        self.angle = lerp(self.angle, self.targetAngle, step=0.05)
+        #self.angle = lerp(self.angle, self.targetAngle, step=0.05)
+        self.angle = self.targetAngle
         self.distance = lerp(self.distance, self.targetDistance, step=0.05)
         
         if DISPLAY:

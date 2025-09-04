@@ -3,7 +3,7 @@ import asyncio
 
 from utils.motors_i2c import Motor
 from utils.cam import Camera
-from utils.screen import Screen
+#from utils.screen import Screen
 from utils.compass import Compass
 from utils.tof import TOFChain
 from threading import Thread

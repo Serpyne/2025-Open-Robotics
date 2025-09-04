@@ -8,6 +8,7 @@ class Compass:
     def __init__(self):
         self.i2c = board.I2C()
         self.bno = BNO08X_I2C(self.i2c)
+        time.sleep(0.67)
         self.bno.enable_feature(BNO_REPORT_ROTATION_VECTOR)
     
     def read(self):

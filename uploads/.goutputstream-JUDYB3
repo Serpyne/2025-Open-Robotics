@@ -18,13 +18,9 @@ import asyncio
 
 
 
-def clamp(x, a: float = -1, b: float = 1) -> float:
+def clamp(x, a=-1, b=1):
     return min(max(x, a), b)
-def lerp(a: float, b: float, t: float) -> float:
-    return a + (b - a) * clamp(t, 0, 1)
-def normalise(a: float) -> float:
-    return (a + 180) % 360 - 180
-    
+
 class Mode:
     Update = 0x12
     Idle = 0xae
@@ -36,7 +32,6 @@ class RobotState:
     ball_distance: float = 0
     heading: float = 0
     initial_heading: float = None
-    last_seen_ball: int = 0
 class Utilities:
     def __init__(self, motors=None, camera=None, compass=None, tofs=None):
         self.motors = motors
@@ -55,35 +50,38 @@ class Robot:
         self.state: RobotState = RobotState()
         self.utils: Utilities = Utilities(motors, camera, compass, tofs)
 
-        self.update_interval: float = 1 / 60
+        self.update_interval: float = 0.1
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
-        """DISTANCE IS IN CM"""
         
-        x5 = -2.124 * pow(10,-8)
-        x4 = 8.243 * pow(10,-6)
-        x3 = -0.0009267
-        x2 = 0.01556
-        x1 = 3.204
+        
         def angle_poly(x: float) -> float:
-            return (x5 * pow(x, 5)) + (x4 * pow(x, 4)) + (x3 * pow(x, 3)) +(x2 * pow(x, 2)) + (x1 * x)
-
-        def f(x, a = 2.5, D = 21.0) -> float:
-            # When the ball (x) is D cm away, drive to the mapped angle.
-            # Further away will be more towards the direct angle
-            # 'a' is dilation
-            return 1#1 / (1 + math.exp(-4 + (1 / a) * (x - D)))
-            
-        angle = normalise(angle)
+            return (-2.124 * pow(10,-8) * pow(x, 5)) + (8.243 * pow(10,-6) * pow(x, 4)) + (-0.0009351 * pow(x, 3)) +(0.01556 * pow(x, 2)) +(3.204 * x) #+ 2.928
+        def distance_poly(x: float) -> float:
+            return (-0.0005 * pow(x, 2)) + (0.015 * x) + 1
+        
+        if angle > 180:
+            angle = angle - 360
+        
         is_negative: bool = angle < 0
         
-        mapped_angle: float = angle_poly(angle) if angle > 0 else -angle_poly(abs(angle))
+        if is_negative:
+            angle = -angle
+        
+        mapped_angle: float = angle_poly(angle)
+        scaled_angle: float = mapped_angle #* max(distance_poly(distance), 0)
+        
+        if is_negative:
+            scaled_angle = -scaled_angle
+            
+        print("DEBUGG: ", angle, scaled_angle)
+        
+        return scaled_angle
 
-        return lerp(angle, mapped_angle, f(distance))
-
-    async def drive_in_direction(self, angle: float, speed: float, contribution: float = 1.0):
+    async def drive_in_direction(self, angle: float, speed: float, contribution: float = 0.9):
         # might need to check if ts works for the motor angle setup
         angle *= -1
+        angle -= 90
         FL = math.sin(math.radians(35 + angle))
         FR = math.sin(math.radians(35 - angle))
 
@@ -123,54 +121,30 @@ class Robot:
         ...
         return
     
-    def drive_direction_bias(self, a: float, bias=10_000_000) -> float:
-        # Drives more forward when its forward
-        a = normalise(a)
-        return a - a / ((1 / bias) * pow(a, 4) + 1)
-    def drive_speed_bias(self, a: float, forward_damping: float = 0.1, side_damping=0.3) -> float:
-        # Drives at 100% sideways and drives 100% on the sides.
-        f = 1 - 0.5 * side_damping * (1 - math.cos(math.radians(2 * a)))
-        return clamp(1 - forward_damping / (1 + pow(0.0167 * f, 4)), -1, 1)
-    
     async def update(self):
         "Logic for the robot gameplay"
         
         if None in [self.utils.camera.angle, self.utils.camera.distance]:
             await asyncio.sleep(0.1)
-            if self.state.last_seen_ball <= 0:
-                await self.brake()
-                return
-            self.state.last_seen_ball -= 1
-        else:
-            self.state.last_seen_ball = 5 # times 100 milliseconds
-            
-            self.state.ball_angle = (180 - math.degrees(self.utils.camera.angle)) % 360
-            self.state.ball_distance = self.utils.camera.distance
+            await self.brake()
+            return
+        
+        self.state.ball_angle = (180 - math.degrees(self.utils.camera.angle)) % 360
+        self.state.ball_distance = self.utils.camera.distance
         if self.state.initial_heading is None:
             self.state.initial_heading = self.utils.compass.read()
-        self.state.heading = normalise(self.utils.compass.read() - self.state.initial_heading)
+        self.state.heading = (self.utils.compass.read() - self.state.initial_heading + 180) % 360 - 180
         self.state.position = self.determine_position() 
         self.state.velocity
         #tof_distances: list[float] = self.utils.tofs.read()
         
         ...
         
-        # BALL FOLLOW
-        await self.turn(-self.state.heading / 67, contribution=0.4)
-    
-        normalised_ball_angle = normalise(self.state.ball_angle)
-        direction = self.calculate_final_direction(normalised_ball_angle, self.state.ball_distance)
-        direction = self.drive_direction_bias(direction)
-        speed = self.drive_speed_bias(direction, forward_damping = 0.2, side_damping = 0.3) * 0.8
-        
-        await self.drive_in_direction(direction, speed, contribution = 1.0)
+        await self.turn(-self.state.heading / 67, 0.3)
+        a = self.calculate_final_direction((self.state.ball_angle + 180) % 360 - 180, self.state.ball_distance)
+        #a = self.state.ball_angle
+        await self.drive_in_direction(a - 90, 0.2)
         await self.confirm_drive()
-        
-        
-        
-        
-        # await self.enable_dribbler()
-        
 
         # print for debugging
         info = {
