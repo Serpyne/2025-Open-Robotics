@@ -18,3 +18,16 @@ class Compass:
         yaw = np.arctan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y**2 + z**2))
         yaw_deg = np.degrees(yaw) % 360
         return yaw_deg
+
+    def calibration(self):
+        return self.bno.calibration_status
+        
+if __name__ == "__main__":
+	c = Compass()
+	
+	time.sleep(0.5)
+	initial = c.read()
+	time.sleep(0.5)
+	while True:
+		print(f"{c.read() - initial:.3f}")
+		time.sleep(1 / 60)

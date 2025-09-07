@@ -14,6 +14,7 @@
 		motors: [0x19, 0x1a, 0x1c, 0x1b],
 		dribbler: 0x1e,
 		tofs: [0x50, 0x51, 0x52, 0x53, 0x54],
+        captureTof: null,
 		switchLeft: 17,
 		switchRight: 4
 	},
@@ -33,4 +34,5 @@
     targetGoal: "yellow",
     topSpeed: 0.8,
     dribbleSpeed: 0.5
+    maintainOrientationTurnSpeed: 0.0145
 }

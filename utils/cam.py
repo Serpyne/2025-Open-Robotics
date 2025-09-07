@@ -41,7 +41,7 @@ def lerp(a, b, step=0.1):
     return a + (b - a) * step
 
 class Camera:
-    def __init__(self, masks):
+    def __init__(self):
         if ON_PI:
             self.stream = Picamera2(0)
             raw_config = self.stream.sensor_modes[0]
@@ -67,10 +67,10 @@ class Camera:
         
         self.ball_lower = (175, 0, 0)
         self.ball_upper = (255, 90, 35)
-        self.yellow_lower = [176, 164, 0]
-        self.yellow_upper = [255, 255, 36]
-        self.blue_lower = [0, 23, 176]
-        self.blue_upper = [36, 47, 255]
+        self.yellow_lower = (176, 164, 0)
+        self.yellow_upper = (255, 255, 36)
+        self.blue_lower = (0, 23, 176)
+        self.blue_upper = (36, 47, 255)
         
         self.yellow_goal_mask = None
         self.blue_goal_mask = None
@@ -108,7 +108,7 @@ class Camera:
             if mask["type"] == "circle":
                 self.body_masks.append(Circle(mask["center"], mask["radius"], mask["colour"]))
             elif mask["type"] == "rect":
-                self.body_masks.append(Rect(mask["x"], mask["y"], mask["w"], mask["h"], mask["colour"])
+                self.body_masks.append(Rect(mask["x"], mask["y"], mask["w"], mask["h"], mask["colour"]))
             elif mask["type"] == "sector":
                 self.body_masks.append(Circle(mask["center"], mask["radius"], mask["startAngle"], mask["endAngle"], mask["colour"]))
     def draw_body_masks(self, frame, filled=True):
@@ -129,32 +129,30 @@ class Camera:
         self.draw_body_masks(rgb)
         
         mask = cv2.inRange(rgb, self.ball_lower, self.ball_upper)
+        self.yellow_goal_mask = cv2.inRange(rgb, self.yellow_lower, self.yellow_upper)
+        self.blue_goal_mask = cv2.inRange(rgb, self.blue_lower, self.blue_upper)
 
         return mask
     
     def calculate_true_distance(self, radius):
         return self.true_distance_map["k"] * pow(radius, self.true_distance_map["a"])
-        
-    def process_frame(self, frame) -> cv2.typing.MatLike:
-        mask = self.get_mask(frame)
-        contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+       
+    def find_biggest_conglomerate_contour(self, mask,
+					max_dist_to_last_contour: float = 120, min_contour_size: int = 30, conglomerate_threshold: int = 8):
+		
+		contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
-        
-        if DISPLAY:
-            self.draw_body_masks(frame, 0)
-            cv2.drawMarker(frame, self.center, (255, 0, 255))
-        
-        if len(contours) == 0:
-            self.angle = self.distance = None
-            return frame
-            
+		
+		if len(contours) == 0:
+			return None
+		
         points = []
         contours = sorted(contours, key=lambda x: x.size, reverse=True)
         
         prev = None
         for i in range(len(contours)):
             cnt = contours[i]
-            if cnt.size < 30: continue
+            if cnt.size < min_contour_size: continue
                 
             M = cv2.moments(cnt)
             if M["m00"] == 0: continue
@@ -162,49 +160,116 @@ class Camera:
             if prev is None: dist_to_last_contour = 0
             else:            dist_to_last_contour = (center - prev).magnitude
                 
-            if dist_to_last_contour > 120: continue
+            if dist_to_last_contour > max_dist_to_last_contour: continue
 
             prev = center.copy()
-            if DISPLAY: cv2.drawMarker(frame, center.int(), (255, 0, 255))
             points += [x for x in cnt]
                 
         if len(points) <= 4:
+			return None
+			
+		conglomerate = cv2.convexHull(np.array(points, dtype=np.int32))
+		if conglomerate.size <= conglomerate_threshold:
+			return None	
+		
+        return conglomerate, contours
+    
+    def process_frame(self, frame) -> cv2.typing.MatLike:
+        # BALL MASK
+        
+        mask = self.get_mask(frame)
+        c_pair = self.find_biggest_conglomerate_contour(mask)
+        
+        self.draw_body_masks(frame, 0)
+        cv2.drawMarker(frame, self.center, (255, 0, 255))
+				
+        if c_pair is None:
             self.angle = self.distance = None
-            return frame
+        else:
+            conglomerate, contours = c_pair
             
-        c = cv2.convexHull(np.array(points, dtype=np.int32))
-        
-        if c.size <= 4 * 2: 
-            self.angle = self.distance = None
-            return frame
+			ellipse = cv2.fitEllipse(conglomerate)
+			center, size, angle = ellipse
+			
+			# BALL LOCATION UPDATING
+			
+			self.pos = Vector(center)
+			delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
+			self.targetAngle = -atan2(delta_pos[1], delta_pos[0])
+			radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
+			self.radius = size[0] * size[1]
+			
+			self.targetDistance = self.calculate_true_distance(self.radius / radial_distance)
+			
+			if self.angle is None: self.angle = 0
+			if self.distance is None: self.distance = 0
+			self.angle = self.targetAngle
+			self.distance = lerp(self.distance, self.targetDistance, step=0.05)
+			
+			if DISPLAY:
+				for i in range(len(contours)):
+					cv2.drawContours(frame, contours, i, (0, 255, 0))
 
-        ellipse = cv2.fitEllipse(c)
-        center, size, angle = ellipse
-        
-        self.pos = Vector(center)
-        delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
-        self.targetAngle = -atan2(delta_pos[1], delta_pos[0])
-        radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
-        self.radius = size[0] * size[1]
-        
-        self.targetDistance = self.calculate_true_distance(self.radius / radial_distance)
-        
-        if self.angle is None: self.angle = 0
-        if self.distance is None: self.distance = 0
-        #self.angle = lerp(self.angle, self.targetAngle, step=0.05)
-        self.angle = self.targetAngle
-        self.distance = lerp(self.distance, self.targetDistance, step=0.05)
-        
-        if DISPLAY:
-            for i in range(len(contours)):
-                cv2.drawContours(frame, contours, i, (0, 255, 0))
+				pos = [int(center[0]), int(center[1])]
 
-            pos = [int(center[0]), int(center[1])]
-
-            cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.drawMarker(frame, pos, (0, 0, 255))
-            cv2.line(frame, self.center, pos, (255,0,0), 5)
+				cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
+				cv2.drawMarker(frame, pos, (0, 0, 255))
+				cv2.line(frame, self.center, pos, tuple(self.ball_upper[::-1]), 5)
+				
+        # YELLOW GOAL MASK    
+        
+        c_pair = self.find_biggest_conglomerate_contour(self.yellow_goal_mask, max_dist_to_last_contour=230, min_contour_size=150)
+        
+        if c_pair is None:
+            self.yellow_angle = None
+            self.yellow_center = None
+        else:
+            conglomerate, contours = c_pair
             
+            M = cv2.moments(conglomerate)
+            if M["m00"] == 0:
+                self.yellow_center = None
+            else:
+                self.yellow_center = [int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])]
+            
+                delta_pos = self.yellow_center[0] - self.center[0], self.yellow_center[1] - self.center[1]
+                self.yellow_angle = -atan2(delta_pos[1], delta_pos[0])
+                
+                if DISPLAY:
+                    for i in range(len(contours)):
+                        cv2.drawContours(frame, contours, i, (0, 255, 0))
+                    cv2.drawContours(frame, [conglomerate], 0, (255, 255, 255))
+
+                    cv2.drawMarker(frame, self.yellow_center, (0, 0, 255))
+                    cv2.line(frame, self.center, self.yellow_center, tuple(self.yellow_upper[::-1]), 5)
+				
+        # BLUE GOAL MASK    
+        
+        c_pair = self.find_biggest_conglomerate_contour(self.blue_goal_mask, max_dist_to_last_contour=230, min_contour_size=150)
+        
+        if c_pair is None:
+            self.blue_angle = None
+            self.blue_center = None
+        else:
+            conglomerate, contours = c_pair
+            
+            M = cv2.moments(conglomerate)
+            if M["m00"] == 0:
+                self.blue_center = None
+            else:
+                self.blue_center = [int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])]
+            
+                delta_pos = self.blue_center[0] - self.center[0], self.blue_center[1] - self.center[1]
+                self.blue_angle = -atan2(delta_pos[1], delta_pos[0])
+                
+                if DISPLAY:
+                    for i in range(len(contours)):
+                        cv2.drawContours(frame, contours, i, (0, 255, 0))
+                    cv2.drawContours(frame, [conglomerate], 0, (255, 255, 255))
+
+                    cv2.drawMarker(frame, self.blue_center, (0, 0, 255))
+                    cv2.line(frame, self.center, self.blue_center, tuple(self.blue_upper[::-1]), 5)
+				
         return frame
     
     def start_event_loop(self):
