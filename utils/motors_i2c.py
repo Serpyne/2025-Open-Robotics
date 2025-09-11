@@ -52,7 +52,7 @@ class Motor:
         while True:
             if len(self.events) > 0:
                 event = self.events.pop(0)
-                print(f"Setting {self.i2c_address} to {event.speed}.")
+                #print(f"Setting {self.i2c_address} to {event.speed}.")
                 # WRITE DATA AND THEN SET CURRENT STATE TO SPEED
                 if self.state != event:
                     data = struct.pack("<i", event.speed)

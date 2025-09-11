@@ -45,7 +45,7 @@ def stop_motors():
 def mainloop(main_func, loop_forever=True, motors=True, motor_addresses=[0x19, 0x1a, 0x1c, 0x1b], dribbler_address=0x1e,
             camera=False, screen=False, compass=False,
             tofs=False, tof_addresses=[0x50, 0x51, 0x52, 0x53, 0x54], capture_tof_address=None):
-    global motors_, camera_, screen_, compass_, tofchain_
+    global motors_, camera_, screen_, compass_, tofchain_, capture_tof
 
     if motors:
         motors_ = {
@@ -63,6 +63,7 @@ def mainloop(main_func, loop_forever=True, motors=True, motor_addresses=[0x19, 0
         compass_ = Compass()
     if tofs:
         tofchain_ = TOFChain(tof_addresses)
+    print("capture_tof_address", capture_tof_address)
     if capture_tof_address is not None:
         capture_tof = TOF(capture_tof_address)
 

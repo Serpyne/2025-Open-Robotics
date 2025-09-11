@@ -12,7 +12,7 @@ parent_dir = "\\".join(file_path.split("\\")[:-1])
 sys.path.append(parent_dir)
 
 from main import mainloop
-from gpiozero import Button
+from gpiozero import Button, OutputDevice
 from vector import Vector
 import math
 import asyncio
@@ -51,15 +51,16 @@ class RobotState:
     dribble_speed: float = 0.5
     maintain_orientation_speed: float = 1 / 67
 class Utilities:
-    def __init__(self, motors=None, camera=None, compass=None, tofs=None):
+    def __init__(self, motors=None, camera=None, compass=None, tofs=None, captureTof=None):
         self.motors = motors
         self.camera = camera
         self.compass = compass
         self.tofs = tofs
         self.switch_left: Button = None
         self.switch_right: Button = None
+        self.captureTof = captureTof
 class Robot:
-    def __init__(self, motors, camera, compass, tofs):
+    def __init__(self, motors, camera, compass, tofs, captureTof):
         
         self.mode: int = Mode.Idle
         
@@ -75,16 +76,19 @@ class Robot:
         self.state.target_goal = Goal.Blue if self.config["targetGoal"] == "blue" else Goal.Yellow
         self.state.maintain_orientation_speed = self.config["maintainOrientationTurnSpeed"]
         self.state.dribble_speed = self.config["dribbleSpeed"]
+        self.cameraOrientation = self.config["cameraOrientation"]
         
         self.speedBias = self.config["speedBias"]
         self.angleCoeff = self.config["anglePolyCoefficients"]
             
-        self.utils: Utilities = Utilities(motors, camera, compass, tofs)
-        self.utils.switch_left = Button(self.config["addresses"]["switchLeft"], pull_up=True)
-        self.utils.switch_right = Button(self.config["addresses"]["switchRight"], pull_up=True)
+        self.utils: Utilities = Utilities(motors, camera, compass, tofs, captureTof)
+        self.utils.switch_left = Button(self.config["addresses"]["switchLeft"], pull_up=False)
+        self.utils.switch_right = Button(self.config["addresses"]["switchRight"], pull_up=False)
+        # ~ od = OutputDevice(22)
+        # ~ od.on()
         
         self.utils.camera.set_masks(self.config["cameraMasks"])
-        self.update_interval: float = 1 / 60
+        self.update_interval: float = 1 / 100
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
         """DISTANCE IS IN CM"""
@@ -92,7 +96,7 @@ class Robot:
         def angle_poly(x: float) -> float:
             return (self.angleCoeff["x5"] * pow(x, 5)) + (self.angleCoeff["x4"] * pow(x, 4)) + (self.angleCoeff["x3"] * pow(x, 3)) + (self.angleCoeff["x2"] * pow(x, 2)) + (self.angleCoeff["x1"] * x)
 
-        def f(x, a = 2.5, D = 21.0) -> float:
+        def f(x, a = 12.5, D = 22.0) -> float:
             return 1 / (1 + math.exp(-4 + (1 / a) * (x - D)))
             
         angle = normalise(angle)
@@ -161,25 +165,29 @@ class Robot:
         "Logic for the robot gameplay"
         
         update_duration = self.update_interval * 1000
+        frontTofDistance = self.utils.captureTof.read()
+        #print("frontTofDistance", frontTofDistance)
         
         if None in [self.utils.camera.angle, self.utils.camera.distance]:
             
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
             
             if self.state.last_seen_ball <= 0:
-                # await self.brake()
-                await self.turn(0.1)
-                await self.confirm_drive()
+                await self.brake()
+                #await self.turn(0.1)
+                #await self.confirm_drive()
                 # --
                 # DRIVE TO MIDDLE OF FIELD
-                return
-            self.state.last_seen_ball -= 100 + update_duration
-            self.state.last_seen_ball = max(0, self.state.last_seen_ball) # Milliseconds
+                #if frontTofDistance > 100:
+                    #return
+            else:
+                self.state.last_seen_ball -= 100 + update_duration
+                self.state.last_seen_ball = max(0, self.state.last_seen_ball) # Milliseconds
             
         else:
             self.state.last_seen_ball = self.state.blind_milliseconds
             
-            self.state.ball_angle = (180 - math.degrees(self.utils.camera.angle)) % 360
+            self.state.ball_angle = (180 - math.degrees(self.utils.camera.angle + self.cameraOrientation)) % 360
             self.state.ball_distance = self.utils.camera.distance
             
             
@@ -197,31 +205,35 @@ class Robot:
         normalised_ball_angle = normalise(self.state.ball_angle)
         
         
-        
         # CHANGE THIS FOR "HELD BALL" BEHAVIOUR
-        #if self.state.tofs["front"] < 5 or (abs(normalised_ball_angle) < 50 and self.state.ball_distance < 21.0):
-        if abs(normalised_ball_angle) < 50 and self.state.ball_distance < 21.0: # NEED TO CALIBRATE TS
-            self.state.has_ball = min(800, self.state.has_ball + update_duration)
+        if frontTofDistance < 80.0 or (abs(normalised_ball_angle) < 50.67 and self.state.ball_distance < 22.0):
+        #if abs(normalised_ball_angle) < 50 and self.state.ball_distance < 21.0: # NEED TO CALIBRATE TS
+            self.state.has_ball = min(670, self.state.has_ball + update_duration)
         else:
             self.state.has_ball = max(0, self.state.has_ball - update_duration)
         
-        
-        
-        if self.state.has_ball >= 300: # MUST HAVE HAD BALL FOR A SUBSTANTIAL AMOUNT
+        if self.state.has_ball > 0:
+            await self.enable_dribbler()
+        else:
+            await self.stop_dribbler()
+        if self.state.has_ball >= 150: # MUST HAVE HAD BALL FOR A SUBSTANTIAL AMOUNT
             # HAS BALL BEHAVIOUR
+            #print("HAS BALL")
             if self.state.target_goal == Goal.Yellow:
                 target_angle = self.utils.camera.yellow_angle
             else:
                 target_angle = self.utils.camera.blue_angle
                 
             if target_angle is not None:
-                await self.turn(target_angle * .001, contribution=0.67)
+                await self.turn(target_angle * .01, contribution=0.8)
                 
             await self.drive_in_direction(0, self.state.dribble_speed, contribution = 1.0)
             await self.confirm_drive()
             
         else:
             # FOLLOW BALL BEHAVIOUR
+            #print("FOLLOW BALL")
+
             await self.turn(-self.state.heading * self.state.maintain_orientation_speed, contribution=0.4)
         
             direction = self.calculate_final_direction(normalised_ball_angle, self.state.ball_distance)
@@ -237,44 +249,44 @@ class Robot:
         "Robot is not moving or sensing"
         await self.brake()
         await self.stop_dribbler()
-        await asyncio.sleep(0.5 - self.update_interval)
+        await asyncio.sleep(2 * self.update_interval)
+        self.state.ball_angle = 0
+        self.state.ball_distance = 1000
+        self.state.last_seen_ball = 0
+        self.state.has_ball = 0
         
     async def calibrate(self):
         "Set initial heading"
         await self.brake()
         await self.stop_dribbler()
         self.state.initial_heading = self.utils.compass.read()
-        await asyncio.sleep(0.5 - self.update_interval)
+        await asyncio.sleep(4 * self.update_interval)
 
     async def start(self):
         
         await self.brake()
         await self.stop_dribbler()
         self.utils.camera.start_event_loop()
-        self.utils.camera.show_debug_screen()
+        #self.utils.camera.show_debug_screen()
         
         while True:
-            
-            # if self.state.switch_left.is_pressed:
-            #     self.state = Mode.Calibrate
-            #     await self.calibrate()
+               
+            # ~ print(self.utils.switch_left.is_pressed, self.utils.switch_right.is_pressed)
+            if self.utils.switch_left.is_pressed:
+                await self.update()
                 
-            # elif self.state.switch_right.is_pressed:
-            #     self.state = Mode.Update
-            #     await self.update()
+            elif self.utils.switch_right.is_pressed:
+                await self.calibrate()
                 
-            # else:
-            #     self.state = Mode.Idle
-            #     await self.idle()
-                
-            await self.update()
+            else:
+                await self.idle()
                 
             await asyncio.sleep(self.update_interval)
 
 
 
-async def main(motors, camera, compass):
-    ts = Robot(motors, camera, compass, None)
+async def main(motors, camera, compass, captureTof):
+    ts = Robot(motors, camera, compass, None, captureTof)
     await ts.start()
     
 if __name__ == "__main__":
