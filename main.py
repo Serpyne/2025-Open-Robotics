@@ -63,7 +63,6 @@ def mainloop(main_func, loop_forever=True, motors=True, motor_addresses=[0x19, 0
         compass_ = Compass()
     if tofs:
         tofchain_ = TOFChain(tof_addresses)
-    print("capture_tof_address", capture_tof_address)
     if capture_tof_address is not None:
         capture_tof = TOF(capture_tof_address)
 

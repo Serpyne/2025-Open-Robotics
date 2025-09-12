@@ -11,13 +11,10 @@ from classes import Vector
 from time import perf_counter as pc
 
 from picamera2 import Picamera2
-ON_PI = True
-print(ON_PI)
 
-# size = [200, 150]
 size = [640, 480]
 RESIZE_WIDTH = size[0]
-DISPLAY = True
+DISPLAY = False
 
 class Circle:
     def __init__(self, center, radius, colour):
@@ -42,22 +39,27 @@ def lerp(a, b, step=0.1):
 
 class Camera:
     def __init__(self):
-        if ON_PI:
-            self.stream = Picamera2(0)
-            raw_config = self.stream.sensor_modes[0]
-            #raw_config["fps"] = 60
-            print(raw_config)
-            config = self.stream.create_video_configuration(
-                main={"format": "XRGB8888", "size": size},
-                raw=raw_config,
-                buffer_count=6,
-                controls={"FrameRate": raw_config["fps"]},
-            )
-            self.stream.configure(config)
-            self.stream.controls.ExposureTime = 8410
-            self.stream.controls.Saturation = 3
-        else:
-            self.stream = VideoStream()
+        self.stream = Picamera2(0)
+        
+        print("All formats: ");[print(x, "\n") for x in self.stream.sensor_modes]
+        
+        raw_config = self.stream.sensor_modes[0]
+        raw_config["fps"] = 120.05
+        raw_config["size"] = tuple(size)
+        # ~ raw_config["crop_limits"] = (696, 528, 2664, 1980)
+        
+        print(f"\nCurrent format: \n{raw_config}\n")
+        
+        config = self.stream.create_video_configuration(
+            main={"format": "XRGB8888", "size": size},
+            raw=raw_config,
+            buffer_count=6,
+            controls={"FrameRate": raw_config["fps"]},
+            #queue=True
+        )
+        self.stream.configure(config)
+        self.stream.controls.ExposureTime = 60000#8410
+        self.stream.controls.Saturation = 3
 
         self._frame = None
         self.frame = None
@@ -90,16 +92,16 @@ class Camera:
             "k": 94.8194330930013
         }
 
-        self.center = [320, 240]
+        self.center = [size[0] // 2, size[1] // 2]
         
-        self.body_masks: list = []
+        self.body_masks: list = [Circle(self.center, 130, (0, 255, 0))]
 
         self.running = False
+        self.dt = 0
+        self.prev_time = pc()
 
     def read(self) -> cv2.typing.MatLike:
-        if ON_PI:
-            return self.stream.capture_array()
-        return self.stream.read()
+        return self.stream.capture_array()
 
     def set_masks(self, masks: list):
         "{type, args*}"
@@ -174,9 +176,7 @@ class Camera:
         
         return conglomerate, contours
     
-    def process_frame(self, frame) -> cv2.typing.MatLike:
-        # BALL MASK
-        
+    def _process_ball(self, frame):
         mask = self.get_mask(frame)
         c_pair = self.find_biggest_conglomerate_contour(mask)
         
@@ -185,40 +185,41 @@ class Camera:
                 
         if c_pair is None:
             self.angle = self.distance = None
-        else:
-            conglomerate, contours = c_pair
+            return
             
-            ellipse = cv2.fitEllipse(conglomerate)
-            center, size, angle = ellipse
-            
-            # BALL LOCATION UPDATING
-            
-            self.pos = Vector(center)
-            delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
-            self.targetAngle = -atan2(delta_pos[1], delta_pos[0])
-            radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
-            self.radius = size[0] * size[1]
-            
-            self.targetDistance = self.calculate_true_distance(self.radius / radial_distance)
-            
-            if self.angle is None: self.angle = 0
-            if self.distance is None: self.distance = 0
-            self.angle = self.targetAngle
-            self.distance = lerp(self.distance, self.targetDistance, step=0.05)
-            
-            if DISPLAY:
-                for i in range(len(contours)):
-                    cv2.drawContours(frame, contours, i, (0, 255, 0))
-
-                pos = [int(center[0]), int(center[1])]
-
-                cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.drawMarker(frame, pos, (0, 0, 255))
-                cv2.line(frame, self.center, pos, tuple(self.ball_upper[::-1]), 5)
-                
-        # YELLOW GOAL MASK    
+        conglomerate, contours = c_pair
         
-        c_pair = self.find_biggest_conglomerate_contour(self.yellow_goal_mask, max_dist_to_last_contour=230, min_contour_size=100)
+        ellipse = cv2.fitEllipse(conglomerate)
+        center, size, angle = ellipse
+        
+        # BALL LOCATION UPDATING
+        
+        self.pos = Vector(center)
+        delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
+        self.targetAngle = -atan2(delta_pos[1], delta_pos[0])
+        radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
+        self.radius = size[0] * size[1]
+        
+        self.targetDistance = self.calculate_true_distance(self.radius / radial_distance)
+        
+        if self.angle is None: self.angle = 0
+        if self.distance is None: self.distance = 0
+        self.angle = self.targetAngle
+        self.distance = lerp(self.distance, self.targetDistance, step=0.05)
+        
+        if not DISPLAY: return
+        
+        for i in range(len(contours)):
+            cv2.drawContours(frame, contours, i, (0, 255, 0))
+
+        pos = [int(center[0]), int(center[1])]
+
+        cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.drawMarker(frame, pos, (0, 0, 255))
+        cv2.line(frame, self.center, pos, tuple(self.ball_upper[::-1]), 5)
+    def _process_goals(self, frame, max_dist_to_last_contour = 200, min_contour_size = 120):
+        c_pair = self.find_biggest_conglomerate_contour(self.yellow_goal_mask,
+                            max_dist_to_last_contour=max_dist_to_last_contour, min_contour_size=min_contour_size)
         
         if c_pair is None:
             self.yellow_angle = None
@@ -243,9 +244,8 @@ class Camera:
                     cv2.drawMarker(frame, self.yellow_center, (0, 0, 255))
                     cv2.line(frame, self.center, self.yellow_center, tuple(self.yellow_upper[::-1]), 5)
                 
-        # BLUE GOAL MASK    
-        
-        c_pair = self.find_biggest_conglomerate_contour(self.blue_goal_mask, max_dist_to_last_contour=230, min_contour_size=100)
+        c_pair = self.find_biggest_conglomerate_contour(self.blue_goal_mask,
+                            max_dist_to_last_contour=max_dist_to_last_contour,min_contour_size=min_contour_size)
         
         if c_pair is None:
             self.blue_angle = None
@@ -269,37 +269,44 @@ class Camera:
 
                     cv2.drawMarker(frame, self.blue_center, (0, 0, 255))
                     cv2.line(frame, self.center, self.blue_center, tuple(self.blue_upper[::-1]), 5)
-                
+    def process_frame(self, frame) -> cv2.typing.MatLike:
+        self._process_ball(frame)
+        self._process_goals(frame)
         return frame
     
     def start_event_loop(self):
-        if ON_PI: self.stream.start()
-        else: self.stream = self.stream.start()
+        self.stream.start()
         
         self.running = True
         def _event_loop():
             while self.running:
+                curr = pc()
+                self.dt = curr - self.prev_time
+                self.prev_time = curr
+                
                 self._frame = self.read()
                 if self._frame is None: continue
                 if self._frame.size == 0: self._frame = None; continue
-                self._frame = imutils.resize(self._frame, width=640)
+                
+                # ~ if self._frame.shape[1] != RESIZE_WIDTH:
+                    # ~ self._frame = imutils.resize(self._frame, width=RESIZE_WIDTH)
 
                 self.frame = self.process_frame(self._frame)
 
         Thread(target=_event_loop, daemon=True).start()
 
     def show_debug_screen(self):
+        global DISPLAY
+        DISPLAY = True
+        
         def main():
             while True:
                 if self.frame is None: continue
                 if DISPLAY:
-                    cv2.imshow("test", self.frame)
+                    cv2.imshow("Camera", self.frame)
+                    if self.dt > 0.0001:
+                        cv2.setWindowTitle("Camera", f"{int(1//self.dt)}")
                     cv2.waitKey(1)
-                    
-                    # if None in [self.angle, self.distance]:
-                        # print("Ball covered")
-                    # else:
-                        # print(f"Angle: {int(degrees(camera.angle))} | Distance: {int(camera.distance)}")
         try:
             Thread(target=main).start()
         
@@ -310,12 +317,10 @@ class Camera:
 
     def stop(self):
         self.running = False
-        if ON_PI:
-            self.stream.close()
-        else:
-            self.stream.stop()
+        self.stream.close()
 
 if __name__ == "__main__":
+    DISPLAY = True
     camera = Camera()
     camera.start_event_loop()
     camera.show_debug_screen()

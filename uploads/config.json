@@ -27,11 +27,12 @@
         "x2": 0.01556,
         "x1": 3.204
     },
-    "speedBias": {"forwardDamping": 0.15, "sideDamping": 0.025},
-    "directionBias": 10000000,
-    "blindnessTimer": 500,
-    "targetGoal": "blue",
-    "topSpeed": 0.72,
-    "dribbleSpeed": 0.67,
-    "maintainOrientationTurnSpeed": 0.0145
+    "speedBias": {"forwardDamping": 0.10, "sideDamping": 0.0025},
+    "directionBias": 11000000,
+    "blindnessTimer": 420,
+    "targetGoal": "yellow",
+    "topSpeed": 0.31,
+    "dribbleSpeed": 0.2,
+    "maintainOrientationTurnSpeed": 0.02,
+    "centerSpeed": 0.41
 }
