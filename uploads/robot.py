@@ -288,8 +288,8 @@ class Robot:
             direction = self.calculate_final_direction(normalised_ball_angle, self.state.ball_distance)
             direction = self.drive_direction_bias(direction)
             speed = self.drive_speed_bias(direction, self.state.ball_distance) * self.state.drive_speed
-            # ~ t = 1 / (1 + math.exp(-4 + (1 / 3.5) * (self.state.ball_distance - 15)))
-            # ~ speed = lerp(self.state.top_speed, speed, t)
+            t = 1 / (1 + math.exp(-4 + (1 / 3.5) * (self.state.ball_distance - 15)))
+            speed = lerp(self.state.top_speed, speed, t)
             
         
             await self.drive_in_direction(direction + self.state.heading, speed, contribution = 1.0)
@@ -334,7 +334,7 @@ class Robot:
         await self.brake()
         await self.stop_dribbler()
         self.utils.camera.start_event_loop()
-        self.utils.camera.show_debug_screen()
+        #self.utils.camera.show_debug_screen()
         
         while True:
             
