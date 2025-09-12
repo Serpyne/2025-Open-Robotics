@@ -12,7 +12,8 @@ from utils.interface import start_websocket, start_server
 motors_ = {}
 camera_ = None
 screen_ = None
-compass_ = None
+compass1_ = None
+compass2_ = None
 tofchain_ = None
 capture_tof = None
 
@@ -28,7 +29,7 @@ async def initialise_event_loop(main_func, motors: bool, camera: bool, screen: b
     if screen:
         args.append(screen_)
     if compass:
-        args.append(compass_)
+        args.append([compass1_, compass2_])
     if tofs:
         args.append(tofchain_)
     if capture_tof is not None:
@@ -45,7 +46,7 @@ def stop_motors():
 def mainloop(main_func, loop_forever=True, motors=True, motor_addresses=[0x19, 0x1a, 0x1c, 0x1b], dribbler_address=0x1e,
             camera=False, screen=False, compass=False,
             tofs=False, tof_addresses=[0x50, 0x51, 0x52, 0x53, 0x54], capture_tof_address=None):
-    global motors_, camera_, screen_, compass_, tofchain_, capture_tof
+    global motors_, camera_, screen_, compass1_, compass2_, tofchain_, capture_tof
 
     if motors:
         motors_ = {
@@ -60,7 +61,8 @@ def mainloop(main_func, loop_forever=True, motors=True, motor_addresses=[0x19, 0
     if screen:
         screen_ = Screen()
     if compass:
-        compass_ = Compass()
+        compass1_ = Compass(0x4a)
+        compass2_ = Compass(0x4b)
     if tofs:
         tofchain_ = TOFChain(tof_addresses)
     if capture_tof_address is not None:

@@ -5,6 +5,7 @@ import numpy as np
 import imutils
 from math import *
 from threading import Thread
+import readline
 import os
 sys.path.append(os.path.dirname(__file__))
 from classes import Vector
@@ -67,12 +68,12 @@ class Camera:
         self.pos = None
         self.radius = None
         
-        self.ball_lower = (175, 0, 0)
+        self.ball_lower = (200, 0, 0)
         self.ball_upper = (255, 90, 35)
-        self.yellow_lower = (55, 40, 0)
-        self.yellow_upper = (75, 90, 25)
+        self.yellow_lower = (47, 55, 0)
+        self.yellow_upper = (76, 100, 25)
         self.blue_lower = (0, 20, 80)
-        self.blue_upper = (35, 60, 140)
+        self.blue_upper = (10, 60, 160)
         
         self.yellow_goal_mask = None
         self.blue_goal_mask = None
@@ -80,6 +81,11 @@ class Camera:
         self.blue_center = None
         self.yellow_angle = None
         self.blue_angle = None
+        
+        self.true_yellow_distance = None
+        self.yellow_distance = None
+        self.true_blue_distance = None
+        self.blue_distance = None
         
         self.distance = None
         self.angle = None
@@ -136,9 +142,9 @@ class Camera:
 
         return mask
     
-    def calculate_true_distance(self, radius):
-        return self.true_distance_map["k"] * pow(radius, self.true_distance_map["a"])
-       
+    def calculate_true_distance(self, x, a=677.87957, b=325.553):
+        return pow(a/(x - b), 2)
+        
     def find_biggest_conglomerate_contour(self, mask,
                     max_dist_to_last_contour: float = 120, min_contour_size: int = 30, conglomerate_threshold: int = 8):
         
@@ -196,16 +202,16 @@ class Camera:
         
         self.pos = Vector(center)
         delta_pos = self.pos.x - self.center[0], self.pos.y - self.center[1]
-        self.targetAngle = -atan2(delta_pos[1], delta_pos[0])
+        self.targetAngle = degrees(-atan2(delta_pos[1], delta_pos[0]))
         radial_distance = sqrt(delta_pos[0]**2 + delta_pos[1]**2)
         self.radius = size[0] * size[1]
         
-        self.targetDistance = self.calculate_true_distance(self.radius / radial_distance)
+        self.targetDistance = self.calculate_true_distance(radial_distance)
         
-        if self.angle is None: self.angle = 0
-        if self.distance is None: self.distance = 0
-        self.angle = self.targetAngle
-        self.distance = lerp(self.distance, self.targetDistance, step=0.05)
+        if self.angle is None: self.angle = self.targetAngle
+        self.angle = self.angle + ((self.targetAngle - self.angle + 180) % 360 - 180) * .5
+        if self.distance is None: self.distance = self.targetDistance
+        self.distance = lerp(self.distance, self.targetDistance, step=0.041)
         
         if not DISPLAY: return
         
@@ -217,6 +223,7 @@ class Camera:
         cv2.ellipse(frame, ellipse, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.drawMarker(frame, pos, (0, 0, 255))
         cv2.line(frame, self.center, pos, tuple(self.ball_upper[::-1]), 5)
+        
     def _process_goals(self, frame, max_dist_to_last_contour = 200, min_contour_size = 120):
         c_pair = self.find_biggest_conglomerate_contour(self.yellow_goal_mask,
                             max_dist_to_last_contour=max_dist_to_last_contour, min_contour_size=min_contour_size)
@@ -224,17 +231,26 @@ class Camera:
         if c_pair is None:
             self.yellow_angle = None
             self.yellow_center = None
+            self.yellow_distance = None
         else:
             conglomerate, contours = c_pair
             
             M = cv2.moments(conglomerate)
             if M["m00"] == 0:
+                self.yellow_angle = None
                 self.yellow_center = None
+                self.yellow_distance = None
             else:
                 self.yellow_center = [int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])]
             
                 delta_pos = self.yellow_center[0] - self.center[0], self.yellow_center[1] - self.center[1]
                 self.yellow_angle = degrees(-atan2(delta_pos[1], delta_pos[0]))
+                
+                pixel_dist = abs(cv2.pointPolygonTest(conglomerate, self.center, True))
+                
+                self.true_yellow_distance = self.calculate_true_distance(pixel_dist)
+                if self.yellow_distance is None: self.yellow_distance = self.true_yellow_distance
+                else: self.yellow_distance = lerp(self.yellow_distance, self.true_yellow_distance, 0.1)
                 
                 if DISPLAY:
                     for i in range(len(contours)):
@@ -262,6 +278,12 @@ class Camera:
                 delta_pos = self.blue_center[0] - self.center[0], self.blue_center[1] - self.center[1]
                 self.blue_angle = degrees(-atan2(delta_pos[1], delta_pos[0]))
                 
+                pixel_dist = abs(cv2.pointPolygonTest(conglomerate, self.center, True))
+                
+                self.true_blue_distance = self.calculate_true_distance(pixel_dist)
+                if self.blue_distance is None: self.blue_distance = self.true_blue_distance
+                else: self.blue_distance = lerp(self.blue_distance, self.true_blue_distance, 0.1)
+                
                 if DISPLAY:
                     for i in range(len(contours)):
                         cv2.drawContours(frame, contours, i, (0, 255, 0))
@@ -270,6 +292,7 @@ class Camera:
                     cv2.drawMarker(frame, self.blue_center, (0, 0, 255))
                     cv2.line(frame, self.center, self.blue_center, tuple(self.blue_upper[::-1]), 5)
     def process_frame(self, frame) -> cv2.typing.MatLike:
+        frame = cv2.circle(frame, [305, 250], 270, (255, 255, 255), 5)
         self._process_ball(frame)
         self._process_goals(frame)
         return frame
@@ -309,6 +332,44 @@ class Camera:
                     cv2.waitKey(1)
         try:
             Thread(target=main).start()
+            
+            if 0:
+                while True:
+                    s = input("> ")
+                    if len(s) <= 2:
+                        print(f"self.ball_lower = {self.ball_lower}")
+                        print(f"self.ball_upper = {self.ball_upper}")
+                        print(f"self.blue_lower = {self.blue_lower}")
+                        print(f"self.blue_upper = {self.blue_upper}")
+                        print(f"self.yellow_lower = {self.yellow_lower}")
+                        print(f"self.yellow_upper = {self.yellow_upper}")
+                        continue
+                    s = s.lower()
+                    if s[0] not in "byul":
+                        print("invalid")
+                        continue
+                    try:
+                        if s[0] in "by":
+                            t = tuple([int(x) for x in s[2:].split(',')])[:3]
+                        else:
+                            t = tuple([int(x) for x in s[1:].split(',')])[:3]
+                    except:
+                        continue
+                    if s[0] == "b":
+                        if s[1] == "l":
+                            self.blue_lower = t
+                        elif s[1] == "u":
+                            self.blue_upper = t
+                    elif s[0] == "y":
+                        if s[1] == "l":
+                            self.yellow_lower = t
+                        elif s[1] == "u":
+                            self.yellow_upper = t
+                            
+                    elif s[0] == "l":
+                        self.ball_lower = t
+                    elif s[0] == "u":
+                        self.ball_upper = t
         
         except KeyboardInterrupt:
             self.stop()

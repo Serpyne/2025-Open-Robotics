@@ -5,10 +5,6 @@
 		{"type": "rect", "x": 300, "y": 355, "w": 40, "h": 32, "colour": [0, 255, 0]},
 		{"type": "rect", "x": 300, "y": 180, "w": 85, "h": 140, "colour": [0, 255, 0]}
 	],
-	"cameraDistanceCoefficients": {"a": -0.5382952459001382, "k": 94.8194330930013},
-	"ballColour": [[175, 0, 0], [255, 90, 35]],
-	"yellowGoalColour": [[176, 164, 0], [255, 255, 36]],
-	"blueGoalColour": [[0, 23, 176], [36, 47, 255]],
 	"addresses": {
 		"motors": [25, 26, 28, 27],
 		"dribbler": 30,
@@ -19,7 +15,7 @@
 	},
 	"wheelPositions": [0, 1, 2, 3],
 	"tofPositions": [36, 108, 180, 252, 324],
-	"cameraOrientation": 135,
+	"cameraOrientation": 180,
 	"anglePolyCoefficients": {
 		"x5": -0.00000002124,
         "x4": 0.000008243,
@@ -27,12 +23,13 @@
         "x2": 0.01556,
         "x1": 3.204
     },
-    "speedBias": {"forwardDamping": 0.10, "sideDamping": 0.0025},
-    "directionBias": 11000000,
-    "blindnessTimer": 420,
+    "speedBias": {"forwardDamping": 0.3, "sideDamping": 0.9},
+    "directionBias": 30000000,
+    "blindnessTimer": 120,
     "targetGoal": "yellow",
-    "topSpeed": 0.31,
-    "dribbleSpeed": 0.2,
-    "maintainOrientationTurnSpeed": 0.02,
+    "driveSpeed": 0.8,
+    "topSpeed": 0.9,
+    "dribbleSpeed": 0.3,
+    "maintainOrientationTurnSpeed": 0.025,
     "centerSpeed": 0.41
 }

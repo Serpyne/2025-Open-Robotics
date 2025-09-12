@@ -5,11 +5,17 @@ from adafruit_bno08x import BNO_REPORT_ROTATION_VECTOR
 import time
 
 class Compass:
-    def __init__(self):
+    def __init__(self, address: int = 0x4a):
         self.i2c = board.I2C()
-        self.bno = BNO08X_I2C(self.i2c)
+        self.bno = BNO08X_I2C(self.i2c, address=address)
         time.sleep(0.67)
-        self.bno.enable_feature(BNO_REPORT_ROTATION_VECTOR)
+        self.enabled = False
+        try:
+            self.bno.enable_feature(BNO_REPORT_ROTATION_VECTOR)
+            print(f"Compass at '{address}' initialised")
+            self.enabled = True
+        except Exception as e:
+            print(e)
     
     def read(self):
         "Get the yaw component of the BNO08x compass sensor"
@@ -23,7 +29,7 @@ class Compass:
         return self.bno.calibration_status
         
 if __name__ == "__main__":
-	c = Compass()
+	c = Compass(0x4a)
 	
 	time.sleep(0.5)
 	initial = c.read()
