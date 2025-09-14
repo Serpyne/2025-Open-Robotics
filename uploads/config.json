@@ -3,7 +3,7 @@
 	"cameraMasks": [
 		{"type": "sector", "center": [294, 250], "radius": 125, "startAngle": 50, "endAngle": 310, "colour": [0, 255, 0]},
 		{"type": "rect", "x": 300, "y": 355, "w": 40, "h": 32, "colour": [0, 255, 0]},
-		{"type": "rect", "x": 300, "y": 180, "w": 85, "h": 140, "colour": [0, 255, 0]}
+		{"type": "rect", "x": 294, "y": 180, "w": 100, "h": 140, "colour": [0, 255, 0]}
 	],
 	"addresses": {
 		"motors": [25, 26, 28, 27],
@@ -30,13 +30,13 @@
         "x2": 0.01556,
         "x1": 3.204
     },
-    "speedBias": {"forwardDamping": 0.3, "sideDamping": 0.9},
-    "directionBias": 30000000,
-    "blindnessTimer": 120,
+    "speedBias": {"forwardDamping": 0.15, "sideDamping": 1.0},
+    "directionBias": 50000000,
+    "blindnessTimer": 200,
     "targetGoal": "yellow",
-    "driveSpeed": 0.8,
-    "topSpeed": 0.9,
-    "dribbleSpeed": 0.3,
+    "driveSpeed": 0.85,
+    "topSpeed": 1.0,
+    "dribbleSpeed": 0.75,
     "maintainOrientationTurnSpeed": 0.025,
-    "centerSpeed": 0.41
+    "centerSpeed": 0.5
 }

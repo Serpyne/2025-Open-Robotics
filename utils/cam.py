@@ -16,6 +16,7 @@ from picamera2 import Picamera2
 size = [640, 480]
 RESIZE_WIDTH = size[0]
 DISPLAY = False
+DEBUG = False
 
 class Circle:
     def __init__(self, center, radius, colour):
@@ -59,7 +60,7 @@ class Camera:
             #queue=True
         )
         self.stream.configure(config)
-        self.stream.controls.ExposureTime = 60000#8410
+        self.stream.controls.ExposureTime = 8410
         self.stream.controls.Saturation = 3
 
         self._frame = None
@@ -68,12 +69,12 @@ class Camera:
         self.pos = None
         self.radius = None
         
-        self.ball_lower = (200, 0, 0)
+        self.ball_lower = (150, 0, 0)
         self.ball_upper = (255, 90, 35)
-        self.yellow_lower = (47, 55, 0)
-        self.yellow_upper = (76, 100, 25)
-        self.blue_lower = (0, 20, 80)
-        self.blue_upper = (10, 60, 160)
+        self.blue_lower = (0, 20, 60)
+        self.blue_upper = (10, 60, 100)
+        self.yellow_lower = (41, 41, 0)
+        self.yellow_upper = (90, 150, 33)
         
         self.yellow_goal_mask = None
         self.blue_goal_mask = None
@@ -146,7 +147,7 @@ class Camera:
         return pow(a/(x - b), 2)
         
     def find_biggest_conglomerate_contour(self, mask,
-                    max_dist_to_last_contour: float = 120, min_contour_size: int = 30, conglomerate_threshold: int = 8):
+                    max_dist_to_last_contour: float = 120, min_contour_size: int = 12, conglomerate_threshold: int = 8):
         
         contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
@@ -164,9 +165,10 @@ class Camera:
                 
             M = cv2.moments(cnt)
             if M["m00"] == 0: continue
-            center = Vector(M["m10"] / M["m00"], M["m01"] / M["m00"])
+            center = [M["m10"] / M["m00"], M["m01"] / M["m00"]]
             if prev is None: dist_to_last_contour = 0
-            else:            dist_to_last_contour = (center - prev).magnitude
+            # ~ else:            dist_to_last_contour = (center - prev).magnitude
+            else: dist_to_last_contour = cv2.pointPolygonTest(cnt, prev, True)
                 
             if dist_to_last_contour > max_dist_to_last_contour: continue
 
@@ -224,7 +226,7 @@ class Camera:
         cv2.drawMarker(frame, pos, (0, 0, 255))
         cv2.line(frame, self.center, pos, tuple(self.ball_upper[::-1]), 5)
         
-    def _process_goals(self, frame, max_dist_to_last_contour = 200, min_contour_size = 120):
+    def _process_goals(self, frame, max_dist_to_last_contour = 260, min_contour_size = 120):
         c_pair = self.find_biggest_conglomerate_contour(self.yellow_goal_mask,
                             max_dist_to_last_contour=max_dist_to_last_contour, min_contour_size=min_contour_size)
         
@@ -333,7 +335,7 @@ class Camera:
         try:
             Thread(target=main).start()
             
-            if 0:
+            if DEBUG:
                 while True:
                     s = input("> ")
                     if len(s) <= 2:
@@ -382,6 +384,7 @@ class Camera:
 
 if __name__ == "__main__":
     DISPLAY = True
+    DEBUG = True
     camera = Camera()
     camera.start_event_loop()
     camera.show_debug_screen()

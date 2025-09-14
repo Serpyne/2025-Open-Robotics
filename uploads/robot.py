@@ -95,7 +95,7 @@ class Robot:
         self.utils.camera.set_masks(self.config["cameraMasks"])
         self.prev: float = perf_counter()
         self.dt: float = 1/60
-        self.update_interval: float = 0.0001
+        self.update_interval: float = 0.00001
         
     def calculate_final_direction(self, angle: float, distance: float) -> float:
         """DISTANCE IS IN CM"""
@@ -167,6 +167,7 @@ class Robot:
         g = 1 - self.speedBias["forwardDamping"] / (1 + pow(0.0167 * f, 4))
         # Lerp between the target speed and 100% depending on distance
         angled_speed = lerp(g, 1, 1 / (1 + math.exp(15 - 0.5*a)))
+        return angled_speed
         return lerp(angled_speed, 1, math.exp(0.125*d - 5))
     
     
@@ -249,10 +250,22 @@ class Robot:
         
         normalised_ball_angle = normalise(self.state.ball_angle - self.state.heading)
         
+        # ~ direction = self.calculate_final_direction(normalised_ball_angle, self.state.ball_distance)
+        # ~ direction = self.drive_direction_bias(direction)
+        # ~ speed = self.drive_speed_bias(direction, self.state.ball_distance) * self.state.drive_speed
+        # ~ t = 1 / (1 + math.exp(-4 + (1 / 2.5) * (self.state.ball_distance - 16.7)))
+        # ~ speed = lerp(self.state.top_speed, speed, t)
+        
+    
+        # ~ await self.drive_in_direction(direction + self.state.heading, speed, contribution = 1.0)
+        # ~ await self.confirm_drive()
+        # ~ return
+        
         # CHANGE THIS FOR "HELD BALL" BEHAVIOUR
-        span = 25
+        span = 26.7
         view_ball_as_captured = (abs(normalised_ball_angle) < span and self.state.ball_distance < 14)
-        condition2 = frontTofDistance < 80.0 and abs(normalised_ball_angle) >= span
+        condition2 = frontTofDistance < 90.0 and abs(normalised_ball_angle) >= span
+        condition2 = frontTofDistance < 90.0 and abs(normalised_ball_angle) >= span
         if condition2 or view_ball_as_captured:
             self.state.has_ball = min(400, self.state.has_ball + self.dt)
         else:
@@ -265,7 +278,7 @@ class Robot:
             await self.stop_dribbler()
             
             
-        if self.state.has_ball >= 210:
+        if self.state.has_ball >= 100:
             # HAS BALL BEHAVIOUR
             if self.state.target_goal == Goal.Yellow:
                 target_angle = self.utils.camera.yellow_angle
@@ -288,7 +301,7 @@ class Robot:
             direction = self.calculate_final_direction(normalised_ball_angle, self.state.ball_distance)
             direction = self.drive_direction_bias(direction)
             speed = self.drive_speed_bias(direction, self.state.ball_distance) * self.state.drive_speed
-            t = 1 / (1 + math.exp(-4 + (1 / 3.5) * (self.state.ball_distance - 15)))
+            t = 1 / (1 + math.exp(-4 + (1 / 2.5) * (self.state.ball_distance - 16.7)))
             speed = lerp(self.state.top_speed, speed, t)
             
         
